@@ -1,6 +1,6 @@
 # Aprendiendo Paradigmas de Programación
 
-**Sitio: [juampykk.github.io/Aprediendo-Paradigmas-de-Programacion](https://juampykk.github.io/Aprediendo-Paradigmas-de-Programacion/)**
+**Sitio: [juampy7.github.io/Aprediendo-Paradigmas-de-Programacion](https://juampy7.github.io/Aprediendo-Paradigmas-de-Programacion/)**
 
 Guía de estudio de **Paradigmas de Programación** (UTN-FRT), armada con las diapositivas y las clases grabadas de la cátedra. Está dividida en dos secciones, cada una con su color:
 
@@ -61,7 +61,7 @@ La primera controla el intérprete de Prolog. La segunda controla la estructura 
 
 1. Subí los cambios: `git add -A`, `git commit -m "mensaje"`, `git push`.
 2. En GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, rama `main`, carpeta `/ (root)`, **Save**.
-3. En uno o dos minutos el sitio queda en `https://juampykk.github.io/Aprediendo-Paradigmas-de-Programacion/`.
+3. En uno o dos minutos el sitio queda en `https://juampy7.github.io/Aprediendo-Paradigmas-de-Programacion/`.
 
 Cada `git push` posterior actualiza el sitio solo.
 
