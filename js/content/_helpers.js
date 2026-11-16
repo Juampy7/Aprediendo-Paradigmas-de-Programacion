@@ -1,0 +1,60 @@
+/* Registro de lecciones y ayudas para escribir contenido.
+   Las etiquetas html, hs, pl y ghci usan el texto crudo de la plantilla,
+   así que una barra invertida (\x -> x) se escribe tal cual.
+   El acento grave de Haskell se escribe \` (ej.: x \`mod\` 2). */
+(function () {
+  'use strict';
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const raw = (s, v) => String.raw({ raw: s.raw }, ...v).replace(/\\`/g, '`');
+
+  function dedent(t) {
+    const lines = t.replace(/^\n+|\s+$/g, '').split('\n');
+    const ind = Math.min(...lines.filter(l => l.trim()).map(l => l.match(/^ */)[0].length));
+    return lines.map(l => l.slice(ind)).join('\n');
+  }
+
+  const HS = /(\{-[\s\S]*?-\}|--.*$)|("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])')|\b(where|let|in|if|then|else|case|of|data|type|newtype|class|instance|deriving|import|infixl|infixr|infix|module|otherwise)\b|\b([A-Z][A-Za-z0-9_']*)|\b(\d+(?:\.\d+)?)\b|([-+*\/<>=|&$.:\\!^@]+)/gm;
+  const PL = /(\/\*[\s\S]*?\*\/|%.*$)|('(?:[^'])*'|"(?:[^"])*")|\b([A-Z_][A-Za-z0-9_]*)\b|\b(\d+(?:\.\d+)?)\b|(:-|\?-|\\\+|->)|\b(is|mod|findall|not|fail|true|false)\b/gm;
+
+  function paint(text, re, classes) {
+    let out = '', last = 0, m;
+    re.lastIndex = 0;
+    while ((m = re.exec(text))) {
+      if (m[0] === '') { re.lastIndex++; continue; }
+      out += esc(text.slice(last, m.index));
+      let cls = '';
+      for (let i = 1; i < m.length; i++) if (m[i] !== undefined) { cls = classes[i - 1]; break; }
+      out += '<span class="' + cls + '">' + esc(m[0]) + '</span>';
+      last = m.index + m[0].length;
+    }
+    return out + esc(text.slice(last));
+  }
+  const hsHl = t => paint(t, HS, ['c', 's', 's', 'k', 't', 'n', 'o']);
+  const plHl = t => paint(t, PL, ['c', 's', 'v', 'n', 'k', 'k']);
+
+  function session(t, prompt, hl) {
+    return t.split('\n').map(l => {
+      if (l.startsWith(prompt)) return '<span class="pr">' + esc(prompt) + '</span>' + hl(l.slice(prompt.length));
+      return '<span class="out">' + esc(l) + '</span>';
+    }).join('\n');
+  }
+
+  const block = (lang, label, body) =>
+    '<figure class="code code-' + lang + '"><figcaption>' + label + '</figcaption><pre><code>' + body + '</code></pre></figure>';
+
+  const PDP = {
+    lessons: [],
+    add(l) { PDP.lessons.push(l); },
+    esc, hsHl, plHl,
+    html: (s, ...v) => raw(s, v),
+    hs: (s, ...v) => block('hs', 'Haskell', hsHl(dedent(raw(s, v)))),
+    pl: (s, ...v) => block('pl', 'Prolog', plHl(dedent(raw(s, v)))),
+    ghci: (s, ...v) => block('hs', 'GHCi', session(dedent(raw(s, v)), 'ghci> ', hsHl)),
+    swipl: (s, ...v) => block('pl', 'Consulta', session(dedent(raw(s, v)), '?- ', plHl)),
+    txt: (s, ...v) => block('txt', 'Reducción', esc(dedent(raw(s, v)))),
+    lab: id => '<div class="lab-slot" data-lab="' + id + '"></div>',
+    // código en línea dentro de preguntas: c`map (+1)`
+    c: (s, ...v) => '<code>' + esc(raw(s, v)) + '</code>'
+  };
+  window.PDP = PDP;
+})();
