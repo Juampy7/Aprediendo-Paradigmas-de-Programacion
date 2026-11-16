@@ -1,5 +1,7 @@
 # Aprendiendo Paradigmas de Programación
 
+**Sitio: [juampykk.github.io/Aprediendo-Paradigmas-de-Programacion](https://juampykk.github.io/Aprediendo-Paradigmas-de-Programacion/)**
+
 Guía de estudio de **Paradigmas de Programación** (UTN-FRT), armada con las diapositivas y las clases grabadas de la cátedra. Está dividida en dos secciones, cada una con su color:
 
 - **Haskell** (violeta): programación funcional y evaluación, tipos y operadores, patrones y guardas, orden superior y polimorfismo, definiciones de tipo, sistema de clases, listas, plegados y ordenación. Sigue los capítulos 1 a 6 de las diapositivas.
