@@ -13,13 +13,25 @@ let fails = 0;
 const fail = m => { fails++; console.log('FALLA: ' + m); };
 const text = h => h.replace(/<[^>]+>/g, '');
 
+// Los laboratorios que existen (sin cargarlos en un navegador): se leen de los archivos.
+const LAB_IDS = [];
+for (const f of ['labs.js', 'labs-poo.js']) {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8');
+  for (const m of src.matchAll(/LABS\.([a-z]+) = \{/g)) LAB_IDS.push(m[1]);
+}
+// Cada término del glosario apunta a una lección existente.
+for (const g of PDP.glossary || []) if (!PDP.lessons.some(l => l.id === g.l && l.sec === g.s)) fail('glosario: ' + g.t + ' apunta a ' + g.s + '/' + g.l);
+
 let total = 0;
 const ids = new Set();
 for (const l of PDP.lessons) {
   if (ids.has(l.id)) fail('id repetido ' + l.id);
   ids.add(l.id);
   for (const k of ['title', 'sub', 'src', 'body']) if (!l[k]) fail(l.id + ' sin ' + k);
-  if (!['haskell', 'prolog'].includes(l.sec)) fail(l.id + ' sección inválida');
+  if (!['objetos', 'interfaz', 'datos', 'haskell', 'prolog'].includes(l.sec)) fail(l.id + ' sección inválida');
+  for (const m of l.body.matchAll(/data-lab="([^":]+)(?::([^"]*))?"/g)) {
+    if (!LAB_IDS.includes(m[1])) fail(l.id + ' usa un laboratorio inexistente: ' + m[1]);
+  }
   if (l.quiz.length < 8) fail(l.id + ' tiene menos de 8 preguntas');
   if (l.body.includes('[object Object]')) fail(l.id + ' cuerpo con un objeto sin convertir');
   const opens = (l.body.match(/<(code|pre|table|ul|ol|div|figure|p|h2|h3)\b/g) || []).length;

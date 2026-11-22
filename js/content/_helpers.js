@@ -31,6 +31,10 @@
   }
   const hsHl = t => paint(t, HS, ['c', 's', 's', 'k', 't', 'n', 'o']);
   const plHl = t => paint(t, PL, ['c', 's', 'v', 'n', 'k', 'k']);
+  const JAVA = /(\/\*[\s\S]*?\*\/|\/\/.*$)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])')|(@[A-Za-z]+)|\b(public|private|protected|class|interface|extends|implements|abstract|static|final|void|int|long|double|float|boolean|char|byte|short|new|return|this|super|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|throws|import|package|null|true|false|instanceof)\b|\b([A-Z][A-Za-z0-9_]*)\b|\b(\d+(?:\.\d+)?[fFdDlL]?)\b/gm;
+  const SQLRE = /(--.*$)|('(?:''|[^'])*')|\b(SELECT|DISTINCT|FROM|WHERE|AND|OR|NOT|GROUP|BY|HAVING|ORDER|ASC|DESC|LIMIT|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|TABLE|DATABASE|USE|DROP|ALTER|PRIMARY|KEY|AUTO_INCREMENT|NULL|IS|LIKE|IN|BETWEEN|AS|INT|VARCHAR|DECIMAL|DATE|TEXT|COUNT|SUM|AVG|MIN|MAX|SHOW|TABLES|IF|EXISTS|DEFAULT|ALL)\b|\b(\d+(?:\.\d+)?)\b|(\?|\*)/gim;
+  const javaHl = t => paint(t, JAVA, ['c', 's', 'o', 'k', 't', 'n']);
+  const sqlHl = t => paint(t, SQLRE, ['c', 's', 'k', 'n', 'o']);
 
   function session(t, prompt, hl) {
     return t.split('\n').map(l => {
@@ -45,7 +49,10 @@
   const PDP = {
     lessons: [],
     add(l) { PDP.lessons.push(l); },
-    esc, hsHl, plHl,
+    esc, hsHl, plHl, javaHl, sqlHl,
+    java: (s, ...v) => block('java', 'Java', javaHl(dedent(raw(s, v)))),
+    sql: (s, ...v) => block('sql', 'SQL', sqlHl(dedent(raw(s, v)))),
+    salida: (s, ...v) => block('txt', 'Salida', esc(dedent(raw(s, v)))),
     html: (s, ...v) => raw(s, v),
     hs: (s, ...v) => block('hs', 'Haskell', hsHl(dedent(raw(s, v)))),
     pl: (s, ...v) => block('pl', 'Prolog', plHl(dedent(raw(s, v)))),

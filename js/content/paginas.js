@@ -1,11 +1,163 @@
 /* Machete (resumen de sintaxis) y bibliografía. */
 (function () {
-  const { html, hs, pl } = PDP;
+  const { html, hs, pl, java, sql } = PDP;
   PDP.pages = {};
 
   PDP.pages.machete = html`
-<h2 class="sec-haskell">Haskell</h2>
-<div class="cheat">
+<nav class="jump"><a href="#/machete" data-jump="m-java">Java y POO</a><a href="#/machete" data-jump="m-gui">Swing</a><a href="#/machete" data-jump="m-sql">SQL y JDBC</a><a href="#/machete" data-jump="m-hs">Haskell</a><a href="#/machete" data-jump="m-pl">Prolog</a></nav>
+<h2 class="sec-objetos" id="m-java">Java y POO <small>1.er parcial</small></h2>
+<div class="cheat sec-objetos">
+<section><h3>Clase, objeto, mensaje</h3>
+${java`
+public class Persona {
+    private String nombre;               // atributo
+    public Persona(String nombre) {      // constructor
+        this.nombre = nombre;
+    }
+    public void saludar() {              // método
+        System.out.println("Hola, " + nombre);
+    }
+}
+Persona p = new Persona("Ana");   // instanciar
+p.saludar();                      // enviar un mensaje
+`}
+<p>Una variable de objeto guarda una <strong>referencia</strong>. <code>==</code> compara referencias; <code>equals</code>, contenido.</p></section>
+
+<section><h3>Acceso</h3>
+<table><tbody>
+<tr><th><code>public</code> <code>+</code></th><td>todos</td></tr>
+<tr><th><code>protected</code> <code>#</code></th><td>clase, paquete y subclases</td></tr>
+<tr><th>(nada) <code>~</code></th><td>mismo paquete</td></tr>
+<tr><th><code>private</code> <code>-</code></th><td>solo la clase</td></tr>
+</tbody></table>
+<p>Atributos <code>private</code> + getters y setters. El setter valida.</p></section>
+
+<section><h3>Constructores</h3>
+<ul><li>Mismo nombre que la clase, sin tipo de retorno.</li>
+<li>Si no hay ninguno, Java agrega uno vacío; si escribís uno con parámetros, ese desaparece.</li>
+<li><code>this(...)</code> otro constructor de la clase; <code>super(...)</code> uno del padre. Siempre en la primera línea.</li></ul></section>
+
+<section><h3>Herencia</h3>
+${java`
+abstract class Persona {
+    protected String nombre;
+    public Persona(String n) { nombre = n; }
+    public abstract void mostrar();
+}
+class Alumno extends Persona {
+    public Alumno(String n) { super(n); }
+    @Override
+    public void mostrar() { System.out.println(nombre); }
+}
+`}
+<p>Herencia simple. Abstracta = no se instancia. Sin <code>super(...)</code>, Java llama a <code>super()</code>.</p></section>
+
+<section><h3>Polimorfismo</h3>
+<p><code>Figura f = new Circulo(5);</code></p>
+<ul><li><strong>Tipo estático</strong> (Figura): qué mensajes compilan.</li><li><strong>Tipo dinámico</strong> (Circulo): qué método se ejecuta.</li></ul>
+<table><tbody>
+<tr><th>Sobrecarga</th><td>mismo nombre, otros parámetros · compilación</td></tr>
+<tr><th>Sobreescritura</th><td>misma firma en la subclase · ejecución</td></tr>
+</tbody></table></section>
+
+<section><h3>Relaciones y UML</h3>
+<table><tbody>
+<tr><th>Herencia</th><td>«es un» · triángulo hueco</td></tr>
+<tr><th>Asociación</th><td>«conoce a» · línea</td></tr>
+<tr><th>Agregación</th><td>partes independientes · rombo vacío</td></tr>
+<tr><th>Composición</th><td>el todo crea sus partes · rombo relleno</td></tr>
+</tbody></table>
+<p>Multiplicidad: <code>1</code> · <code>0..1</code> · <code>*</code> · <code>1..*</code> (colección → <code>ArrayList</code>).</p></section>
+
+<section><h3>ArrayList</h3>
+${java`
+ArrayList<Libro> libros = new ArrayList<>();
+libros.add(l);        libros.get(0);
+libros.size();        libros.remove(0);
+for (Libro x : libros) { x.mostrar(); }
+`}
+<p>Para números: <code>ArrayList&lt;Integer&gt;</code>.</p></section>
+</div>
+
+<h2 class="sec-interfaz" id="m-gui">Swing y MVC <small>1.er parcial</small></h2>
+<div class="cheat sec-interfaz">
+<section><h3>Ventana y evento</h3>
+${java`
+class Ventana extends JFrame {
+    JTextField txt = new JTextField(10);
+    JButton btn = new JButton("OK");
+    Ventana() {
+        setLayout(new FlowLayout());
+        add(txt); add(btn);
+        btn.addActionListener(e ->
+            JOptionPane.showMessageDialog(this, txt.getText()));
+        setSize(300, 120);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setVisible(true);
+    }
+}
+`}
+<p>Fuente → evento → oyente. Mouse: <code>MouseListener</code> o <code>MouseAdapter</code>. Teclado: <code>KeyListener</code>.</p></section>
+
+<section><h3>JTable</h3>
+${java`
+DefaultTableModel m = (DefaultTableModel) tabla.getModel();
+m.setRowCount(0);                        // vaciar
+m.addRow(new Object[] { "Ana", 25 });    // agregar
+int f = tabla.getSelectedRow();          // -1 si no hay
+if (f != -1) m.removeRow(f);
+`}</section>
+
+<section><h3>MVC</h3>
+<table><tbody>
+<tr><th>Modelo</th><td>negocio y datos; no conoce las ventanas</td></tr>
+<tr><th>Vista</th><td>muestra y avisa; sin lógica</td></tr>
+<tr><th>Controlador</th><td>recibe eventos, usa el modelo, actualiza la vista</td></tr>
+</tbody></table>
+<p><code>static</code>: pertenece a la clase, como <code>App.mostrarVAlquiler()</code>.</p></section>
+</div>
+
+<h2 class="sec-datos" id="m-sql">SQL y JDBC <small>1.er parcial</small></h2>
+<div class="cheat sec-datos">
+<section><h3>CRUD</h3>
+${sql`
+SELECT nombre, precio FROM productos
+WHERE precio > 1000 ORDER BY precio DESC;
+INSERT INTO productos (nombre, precio) VALUES ('Yerba', 4500);
+UPDATE productos SET precio = 5000 WHERE id = 3;
+DELETE FROM productos WHERE id = 3;
+`}
+<p>Sin <code>WHERE</code>, UPDATE y DELETE tocan <strong>todas</strong> las filas.</p></section>
+
+<section><h3>Filtros y grupos</h3>
+<table><tbody>
+<tr><th><code>LIKE 'M%'</code></th><td>empieza con M (<code>_</code> = un carácter)</td></tr>
+<tr><th><code>BETWEEN a AND b</code></th><td>incluye los extremos</td></tr>
+<tr><th><code>IN (…)</code></th><td>alguno de la lista</td></tr>
+<tr><th><code>IS NULL</code></th><td>nunca <code>= NULL</code></td></tr>
+<tr><th><code>DISTINCT</code></th><td>sin repetidos</td></tr>
+<tr><th><code>GROUP BY … HAVING</code></th><td>agrupar y filtrar grupos</td></tr>
+</tbody></table>
+<p><code>COUNT(*)</code> · <code>SUM</code> · <code>AVG</code> · <code>MIN</code> · <code>MAX</code></p></section>
+
+<section><h3>JDBC</h3>
+${java`
+String url = "jdbc:mariadb://localhost:3306/base";
+try (Connection con = DriverManager.getConnection(url, "root", "");
+     PreparedStatement ps = con.prepareStatement(
+         "SELECT * FROM productos WHERE precio > ?")) {
+    ps.setDouble(1, 1000);              // los ? se cuentan desde 1
+    ResultSet rs = ps.executeQuery();
+    while (rs.next()) {
+        System.out.println(rs.getString("nombre"));
+    }
+} catch (SQLException e) { e.printStackTrace(); }
+`}
+<p><code>executeQuery</code> → ResultSet · <code>executeUpdate</code> → filas afectadas. Sin el .jar: «No suitable driver found».</p></section>
+</div>
+
+<h2 class="sec-haskell" id="m-hs">Haskell <small>2.º parcial</small></h2>
+<div class="cheat sec-haskell">
 <section><h3>Definir</h3>
 ${hs`
 f :: Integer -> Integer -> Integer    -- tipo
@@ -112,8 +264,8 @@ foldl f z [a, b, c] = ((z \`f\` a) \`f\` b) \`f\` c
 <p>Coinciden si <code>f</code> es asociativa, <code>z</code> es su neutro y la lista es finita.</p></section>
 </div>
 
-<h2 class="sec-prolog">Prolog</h2>
-<div class="cheat">
+<h2 class="sec-prolog" id="m-pl">Prolog <small>2.º parcial</small></h2>
+<div class="cheat sec-prolog">
 <section><h3>Cláusulas</h3>
 ${pl`
 padre(juan, maria).                           % hecho
@@ -179,10 +331,26 @@ nacio(juan, fecha(20, 4, 1990)).      % fecha es un functor
   PDP.pages.biblio = html`
 <h2>Material de la cátedra</h2>
 <ul class="biblio">
+  <li><strong>Apunte de Programación Orientada a Objetos con Java</strong> (unidades 0 a 12): base de las trece lecciones del primer parcial. Las partes que el apunte marca para completar (Swing, JDBC, CRUD, MVC, cliente-servidor) se escribieron para esta guía a partir de los títulos de los videos y de la documentación oficial.</li>
   <li><strong>Diapositivas de Haskell</strong>, capítulos 1 a 6: Programación funcional · Introducción a Haskell · Funciones de orden superior y polimorfismo · Definiciones de tipo · El sistema de clases de Haskell · Programación con listas. Son la base de las ocho lecciones de Haskell de esta guía.</li>
   <li><strong>Programa de la asignatura</strong> Paradigmas de Programación (código 082026, 2.º nivel). Unidad 3: Paradigma Funcional, lenguaje asociado Haskell. Unidad 4: Paradigma Lógico, lenguaje asociado Prolog.</li>
 </ul>
-<h3>Videos de la cátedra (UTN-FRT, profe José)</h3>
+<h3>Videos del primer parcial: POO con Java</h3>
+<ul class="biblio">
+  <li><a href="https://www.youtube.com/watch?v=Fa2oOEJVYrU" target="_blank" rel="noopener">Introducción</a>: paradigmas y lenguajes.</li>
+  <li><a href="https://www.youtube.com/watch?v=OBoLZppg5ps" target="_blank" rel="noopener">Clase 1</a>: clases y objetos, atributos y métodos, instanciación y mensajes · <a href="https://www.youtube.com/watch?v=5-Weocehhpo" target="_blank" rel="noopener">continuación</a>: clase Círculo y referencias.</li>
+  <li><a href="https://www.youtube.com/watch?v=BhQeyNSsH9Q" target="_blank" rel="noopener">Clase 2</a>: encapsulamiento · <a href="https://www.youtube.com/watch?v=xNBwjUiqrmU" target="_blank" rel="noopener">continuación</a>.</li>
+  <li><a href="https://www.youtube.com/watch?v=QNhJJ36NlqI" target="_blank" rel="noopener">Clase 3</a>: constructores, herencia, sobreescritura, clase abstracta, UML, this y super · <a href="https://www.youtube.com/watch?v=EoGhjjNnsFk" target="_blank" rel="noopener">continuación</a>.</li>
+  <li><a href="https://www.youtube.com/watch?v=OCQkNaDcbJo" target="_blank" rel="noopener">Clase 4</a>: polimorfismo · <a href="https://www.youtube.com/watch?v=9DBvNnFZbRg" target="_blank" rel="noopener">continuación</a>: agregación y composición.</li>
+  <li><a href="https://www.youtube.com/watch?v=xYLAB-AE_IA" target="_blank" rel="noopener">Clase 5</a>: ejemplo integrador, diagrama del punto de venta · <a href="https://www.youtube.com/watch?v=JtW5e9MQ2qo" target="_blank" rel="noopener">continuación</a>: codificación.</li>
+  <li><a href="https://www.youtube.com/watch?v=1byILPbdlmQ" target="_blank" rel="noopener">Clase 6</a>: hola mundo con ventana y evento de acción · <a href="https://www.youtube.com/watch?v=Fk0F65sKBcc" target="_blank" rel="noopener">otros eventos</a>.</li>
+  <li><a href="https://www.youtube.com/watch?v=efo_CUwO9kU" target="_blank" rel="noopener">Clase 7</a>: ventanas y JTable · <a href="https://www.youtube.com/watch?v=sXdnmBGiVvw" target="_blank" rel="noopener">continuación</a>.</li>
+  <li><a href="https://www.youtube.com/watch?v=NgmmzXvi61k" target="_blank" rel="noopener">Clase 8</a>: MySQL, cliente y servidor, SQL · <a href="https://www.youtube.com/watch?v=rtvzgEt63qM" target="_blank" rel="noopener">continuación</a>: SELECT, INSERT, UPDATE y DELETE.</li>
+  <li><a href="https://www.youtube.com/watch?v=M6L3N5VJ3BU" target="_blank" rel="noopener">Clase 9</a>: JDBC · <a href="https://www.youtube.com/watch?v=19pXjmdVT9Y" target="_blank" rel="noopener">continuación</a>.</li>
+  <li><a href="https://www.youtube.com/watch?v=tROCXbDASpM" target="_blank" rel="noopener">Clase 10</a>: ventana con base de datos: listado, alta, baja y modificación.</li>
+  <li><a href="https://www.youtube.com/watch?v=OxxU6NUDJqY" target="_blank" rel="noopener">Clase 11</a>: varias ventanas e introducción a MVC.</li>
+</ul>
+<h3>Videos del segundo parcial: Haskell y Prolog</h3>
 <ul class="biblio">
   <li><a href="https://www.youtube.com/watch?v=ji1WtPp8x10" target="_blank" rel="noopener">Haskell Clase 1</a>: funciones, tipos de datos, operadores, evaluación, listas, tuplas, patrones.</li>
   <li><a href="https://www.youtube.com/watch?v=QzRjMYqXBoE" target="_blank" rel="noopener">Haskell Clase 2</a>: if y guardas, encaje de patrones, expresiones lambda, listas, map y filter.</li>
@@ -194,6 +362,8 @@ nacio(juan, fecha(20, 4, 1990)).      % fecha es un functor
 
 <h2>Referencias usadas para ampliar</h2>
 <ul class="biblio">
+  <li><a href="https://docs.oracle.com/javase/tutorial/" target="_blank" rel="noopener">The Java Tutorials</a> (Oracle): clases, herencia, interfaces, Swing y JDBC, con ejemplos. En inglés.</li>
+  <li><a href="https://mariadb.com/kb/es/" target="_blank" rel="noopener">Base de conocimiento de MariaDB</a>, en español: sintaxis de SQL y del conector de Java.</li>
   <li><a href="https://www.pdep.com.ar/" target="_blank" rel="noopener">pdep.com.ar</a>: sitio de Paradigmas de Programación de otra facultad (UTN-FRBA). Tiene apuntes, guías de ejercicios y parciales de funcional y lógico; sirve como práctica extra. Ojo: su cursada puede usar otras convenciones y otro orden de temas.</li>
   <li><a href="https://es.wikipedia.org/wiki/Prolog" target="_blank" rel="noopener">Wikipedia: Prolog</a>: historia, cláusulas de Horn, unificación y backtracking.</li>
 </ul>
@@ -210,6 +380,8 @@ nacio(juan, fecha(20, 4, 1990)).      % fecha es un functor
 
 <h2>Para practicar con los lenguajes reales</h2>
 <ul class="biblio">
+  <li><a href="https://netbeans.apache.org/" target="_blank" rel="noopener">Apache NetBeans</a> con un JDK: el entorno que usa la cátedra para Java y el diseñador de ventanas Swing.</li>
+  <li><a href="https://mariadb.org/download/" target="_blank" rel="noopener">MariaDB</a> (servidor), <a href="https://www.heidisql.com/" target="_blank" rel="noopener">HeidiSQL</a> (cliente) y el <a href="https://mariadb.com/downloads/connectors/" target="_blank" rel="noopener">conector Java</a> (el .jar del driver).</li>
   <li><a href="https://www.haskell.org/ghcup/" target="_blank" rel="noopener">GHCup</a>: instala GHC y el intérprete GHCi. Para probar sin instalar: <a href="https://play.haskell.org/" target="_blank" rel="noopener">play.haskell.org</a>.</li>
   <li><a href="https://www.swi-prolog.org/" target="_blank" rel="noopener">SWI-Prolog</a>: el intérprete de Prolog más usado. Para probar sin instalar: <a href="https://swish.swi-prolog.org/" target="_blank" rel="noopener">SWISH</a>.</li>
   <li><a href="http://aprendehaskell.es/" target="_blank" rel="noopener">¡Aprende Haskell por el bien de todos!</a>: libro introductorio gratuito, en español.</li>
@@ -217,6 +389,10 @@ nacio(juan, fecha(20, 4, 1990)).      % fecha es un functor
 
 <h2>Notas sobre el material</h2>
 <ul class="biblio">
+  <li><strong>Punto de venta.</strong> El apunte nombra las clases del ejemplo integrador (Producto, Venta, Línea, Terminal y Comercio) pero no trae el diagrama: el de la lección de UML es una propuesta para verificar contra la clase grabada.</li>
+  <li><strong>Swing, JDBC y MVC.</strong> El apunte avisa que la presentación de Swing no estaba disponible y marca para completar JDBC, CRUD y MVC. Esas lecciones se escribieron con los títulos de los videos y la documentación de Java; las clases y los métodos son los reales.</li>
+  <li><strong>Auto y ruedas.</strong> El apunte da «Auto → Ruedas» como agregación y, más abajo, «un Coche compone un Motor y Ruedas». Depende de lo que se modele; la lección de agregación y composición lo explica.</li>
+  <li><strong>La consola SQL y la ventana CRUD</strong> usan un motor simulado escrito para esta guía. Se comporta como MySQL y MariaDB en lo que ve la materia (por ejemplo, compara textos sin distinguir mayúsculas), pero no es un servidor real.</li>
   <li><strong>Hugs y GHC.</strong> Las diapositivas muestran sesiones del intérprete Hugs (indicador <code>Prelude&gt;</code>, respuestas con <code>:: Tipo</code>). Esta guía usa el formato de GHCi, que es lo que se instala hoy. El lenguaje es el mismo.</li>
   <li><strong>Patrones n + k.</strong> <code>factorial (n + 1) = …</code> aparece en varias diapositivas. Se quitaron en Haskell 2010; GHC no los acepta por defecto. Hay que saber leerlos y escribir <code>factorial n = n * factorial (n - 1)</code>.</li>
   <li><strong>Módulos.</strong> <code>import Ratio</code> hoy es <code>import Data.Ratio</code>; <code>ord</code>, <code>chr</code>, <code>toUpper</code> e <code>isUpper</code> están en <code>Data.Char</code>.</li>

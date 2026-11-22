@@ -1,89 +1,196 @@
-/* Aplicación: navegación por hash, lecciones, cuestionarios con repaso de falladas y progreso en localStorage. */
+/* Aplicación: barra lateral por parcial, navegación por hash, lecciones, cuestionarios con repaso de falladas,
+   tarjetas de memoria, glosario, buscador, plan de estudio y progreso en localStorage. */
 (function () {
   'use strict';
   const PDP = window.PDP, LABS = window.LABS;
   const main = document.getElementById('app');
-  const SECS = {
-    haskell: { name: 'Haskell', long: 'Paradigma funcional', glyph: 'λ', blurb: 'Funciones puras, evaluación perezosa, tipos, orden superior y listas.' },
-    prolog: { name: 'Prolog', long: 'Paradigma lógico', glyph: ':-', blurb: 'Hechos, reglas y consultas; unificación, backtracking, listas y functores.' }
+  const side = document.getElementById('side');
+  const esc = PDP.esc;
+
+  const PARC = {
+    p1: { name: 'Primer parcial', short: '1.er parcial', blurb: 'Programación orientada a objetos con Java: clases, encapsulamiento, herencia, polimorfismo y UML; interfaz gráfica con Swing; bases de datos con SQL y JDBC.', secs: ['objetos', 'interfaz', 'datos'] },
+    p2: { name: 'Segundo parcial', short: '2.º parcial', blurb: 'Paradigma funcional con Haskell y paradigma lógico con Prolog.', secs: ['haskell', 'prolog'] }
   };
-  const lessons = PDP.lessons.slice().sort((a, b) => (a.sec === b.sec ? a.n - b.n : a.sec === 'haskell' ? -1 : 1));
+  const SECS = {
+    objetos: { p: 'p1', name: 'Objetos', long: 'POO con Java', glyph: '{ }', blurb: 'Clases y objetos, encapsulamiento, herencia, polimorfismo, agregación y composición, UML.' },
+    interfaz: { p: 'p1', name: 'Interfaz gráfica', long: 'Swing y MVC', glyph: '▣', blurb: 'Ventanas, componentes y eventos con Swing, JTable, varias ventanas y el patrón MVC.' },
+    datos: { p: 'p1', name: 'Bases de datos', long: 'SQL y JDBC', glyph: 'SQL', blurb: 'SQL, conexión desde Java con JDBC y una ventana con altas, bajas, modificaciones y listados.' },
+    haskell: { p: 'p2', name: 'Haskell', long: 'Paradigma funcional', glyph: 'λ', blurb: 'Funciones puras, evaluación perezosa, tipos, orden superior y listas.' },
+    prolog: { p: 'p2', name: 'Prolog', long: 'Paradigma lógico', glyph: ':-', blurb: 'Hechos, reglas y consultas; unificación, backtracking, listas y functores.' }
+  };
+  const ORDER = ['objetos', 'interfaz', 'datos', 'haskell', 'prolog'];
+  const lessons = PDP.lessons.slice().sort((a, b) => (a.sec === b.sec ? a.n - b.n : ORDER.indexOf(a.sec) - ORDER.indexOf(b.sec)));
   const byId = Object.fromEntries(lessons.map(l => [l.id, l]));
   const ofSec = s => lessons.filter(l => l.sec === s);
+  const ofParc = p => lessons.filter(l => SECS[l.sec].p === p);
   const allQ = ls => ls.flatMap(l => l.quiz.map((q, i) => ({ qid: l.id + ':' + i, q, lesson: l })));
   const qById = Object.fromEntries(allQ(lessons).map(x => [x.qid, x]));
+  const GLOS = (PDP.glossary || []).map(g => Object.assign({ key: g.s + '|' + g.t }, g));
 
   // ---------- Progreso ----------
   const KEY = 'paradigmas-v1';
-  let store = { read: {}, best: {}, fail: {}, seen: {} };
+  const fresh = () => ({ read: {}, best: {}, fail: {}, seen: {}, cards: {}, dates: {}, open: {}, last: null });
+  let store = fresh();
   try { Object.assign(store, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { /* sin almacenamiento: se sigue sin guardar */ }
+  for (const k of Object.keys(fresh())) if (store[k] === undefined) store[k] = fresh()[k];
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) { /* idem */ } };
-  const failed = sec => Object.keys(store.fail).filter(id => qById[id] && (!sec || qById[id].lesson.sec === sec));
+  const failedIn = ls => { const ids = new Set(ls.map(l => l.id)); return Object.keys(store.fail).filter(q => qById[q] && ids.has(qById[q].lesson.id)); };
 
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
   const bar = (v, label) => '<div class="bar" role="progressbar" aria-valuenow="' + v + '" aria-valuemin="0" aria-valuemax="100" aria-label="' + label + '"><i style="width:' + v + '%"></i></div>';
-
-  function secStats(sec) {
-    const ls = ofSec(sec), qs = allQ(ls);
-    const read = ls.filter(l => store.read[l.id]).length;
-    const ok = qs.filter(x => store.seen[x.qid] && !store.fail[x.qid]).length;
-    return { lessons: ls.length, read, qs: qs.length, ok, fail: failed(sec).length };
+  const norm = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  function stats(ls) {
+    const qs = allQ(ls);
+    return { lessons: ls.length, read: ls.filter(l => store.read[l.id]).length, qs: qs.length, ok: qs.filter(x => store.seen[x.qid] && !store.fail[x.qid]).length, fail: qs.filter(x => store.fail[x.qid]).length };
   }
+  function donut(v, label, cls) {
+    const r = 34, c = 2 * Math.PI * r;
+    return '<svg class="donut ' + (cls || '') + '" viewBox="0 0 84 84" role="img" aria-label="' + label + ': ' + v + ' %"><circle cx="42" cy="42" r="' + r + '" class="d-bg"/>' + (v ? '<circle cx="42" cy="42" r="' + r + '" class="d-fg" stroke-dasharray="' + (c * v / 100).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 42 42)"/>' : '') + '<text x="42" y="47">' + v + '%</text></svg>';
+  }
+  function daysTo(d) {
+    if (!d) return null;
+    const t = new Date(d + 'T00:00:00'), now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return Math.round((t - now) / 86400000);
+  }
+  const countdown = p => {
+    const n = daysTo(store.dates[p]);
+    if (n === null) return '<a class="cd none" href="#/plan">Cargá la fecha del parcial</a>';
+    if (n < 0) return '<span class="cd past">El parcial ya pasó</span>';
+    return '<span class="cd' + (n <= 7 ? ' soon' : '') + '"><b>' + (n === 0 ? '¡Hoy!' : n) + '</b>' + (n === 0 ? '' : n === 1 ? ' día' : ' días') + '</span>';
+  };
+
+  // ---------- Barra lateral ----------
+  function renderSide(r) {
+    const scroll = side.scrollTop;
+    const cur = location.hash || '#/';
+    const curLesson = r.name === 'leccion' ? byId[r.arg] : null;
+    const isOn = href => cur === href || (href !== '#/' && cur.indexOf(href + '/') === 0) || (href === '#/labs' && r.name === 'lab') || (href === '#/practica' && r.name === 'quiz' && !/^sim-p/.test(r.arg));
+    const link = (href, label, extra) => '<a class="side-link' + (isOn(href) ? ' on' : '') + '" href="' + href + '"' + (isOn(href) ? ' aria-current="page"' : '') + '>' + label + (extra || '') + '</a>';
+    let h = '<div class="side-search"><input type="search" id="side-q" placeholder="Buscar en la guía" aria-label="Buscar en la guía" autocomplete="off"><kbd>/</kbd></div>';
+    h += link('#/', '<span class="si">⌂</span>Inicio') + link('#/plan', '<span class="si">◷</span>Plan de estudio');
+    for (const p of Object.keys(PARC)) {
+      const P = PARC[p], st = stats(ofParc(p));
+      h += '<div class="side-parc"><a class="side-ph' + (cur === '#/' + p ? ' on' : '') + '" href="#/' + p + '"><span>' + P.name + '</span><small>' + pct(st.read, st.lessons) + ' %</small></a>';
+      for (const s of P.secs) {
+        const S = SECS[s], ls = ofSec(s);
+        const open = store.open[s] !== undefined ? store.open[s] : !!(curLesson && curLesson.sec === s);
+        const isOpen = open || (curLesson && curLesson.sec === s);
+        h += '<div class="side-sec sec-' + s + (isOpen ? ' open' : '') + '"><div class="side-st"><a href="#/' + s + '" class="side-sn' + (cur === '#/' + s ? ' on' : '') + '"><span class="dot" aria-hidden="true"></span>' + S.name + '</a>' +
+          '<button type="button" class="side-tog" data-tog="' + s + '" aria-expanded="' + !!isOpen + '" aria-label="' + (isOpen ? 'Cerrar' : 'Abrir') + ' ' + S.name + '"><small>' + ls.filter(l => store.read[l.id]).length + '/' + ls.length + '</small><span class="chev" aria-hidden="true"></span></button></div>' +
+          '<ol class="side-ls">' + ls.map(l => {
+            const on = curLesson && curLesson.id === l.id;
+            return '<li><a href="#/leccion/' + l.id + '" class="' + (on ? 'on' : '') + (store.read[l.id] ? ' read' : '') + '"' + (on ? ' aria-current="page"' : '') + '><span class="n">' + (store.read[l.id] ? '✓' : l.n) + '</span><span>' + l.title + '</span></a></li>';
+          }).join('') + '</ol></div>';
+      }
+      h += link('#/quiz/sim-' + p, '<span class="si">✎</span>Simulacro del ' + P.short) + '</div>';
+    }
+    const nf = Object.keys(store.fail).filter(q => qById[q]).length;
+    h += '<div class="side-h">Herramientas</div>' +
+      link('#/practica', '<span class="si">✔</span>Práctica y repaso', nf ? '<span class="badge warn">' + nf + '</span>' : '') +
+      link('#/tarjetas', '<span class="si">▤</span>Tarjetas de memoria') +
+      link('#/glosario', '<span class="si">Aa</span>Glosario') +
+      link('#/labs', '<span class="si">⚗</span>Laboratorios') +
+      link('#/machete', '<span class="si">≡</span>Machete') +
+      link('#/biblio', '<span class="si">❡</span>Bibliografía');
+    side.innerHTML = h;
+    side.scrollTop = scroll;
+    const q = document.getElementById('side-q');
+    q.onkeydown = e => { if (e.key === 'Enter' && q.value.trim()) { location.hash = '#/buscar/' + encodeURIComponent(q.value.trim()); } };
+  }
+  side.addEventListener('click', e => {
+    const t = e.target.closest('[data-tog]');
+    if (t) {
+      const s = t.dataset.tog, el = t.closest('.side-sec');
+      const now = !el.classList.contains('open');
+      store.open[s] = now;
+      save();
+      el.classList.toggle('open', now);
+      t.setAttribute('aria-expanded', String(now));
+      return;
+    }
+    if (e.target.closest('a')) document.body.classList.remove('side-open');
+  });
+  document.getElementById('menu-btn').onclick = () => document.body.classList.toggle('side-open');
+  document.getElementById('side-shade').onclick = () => document.body.classList.remove('side-open');
 
   // ---------- Vistas ----------
+  const page = (over, title, lead, body) => '<header class="page-head"><p class="over">' + over + '</p><h1>' + title + '</h1>' + (lead ? '<p class="lead">' + lead + '</p>' : '') + '</header>' + body;
+  const notFound = () => '<header class="page-head"><h1>No encontré esa página</h1><p class="lead"><a href="#/">Volver al inicio</a></p></header>';
+
   function home() {
-    const nf = failed().length;
-    const cards = Object.keys(SECS).map(s => {
-      const S = SECS[s], st = secStats(s);
-      return '<a class="sec-card sec-' + s + '" href="#/' + s + '"><span class="glyph" aria-hidden="true">' + S.glyph + '</span><span class="over">' + S.long + '</span><h2>' + S.name + '</h2><p>' + S.blurb + '</p>' +
-        '<div class="stat"><span>' + st.read + ' de ' + st.lessons + ' lecciones leídas</span>' + bar(pct(st.read, st.lessons), 'Lecciones leídas') + '</div>' +
-        '<div class="stat"><span>' + st.ok + ' de ' + st.qs + ' preguntas dominadas</span>' + bar(pct(st.ok, st.qs), 'Preguntas dominadas') + '</div></a>';
-    }).join('');
-    const total = allQ(lessons).length;
+    const parcCard = p => {
+      const P = PARC[p], ls = ofParc(p), st = stats(ls);
+      return '<section class="parc-card"><div class="pc-top"><div><p class="over">' + P.short + '</p><h2><a href="#/' + p + '">' + P.name + '</a></h2></div>' + countdown(p) + '</div>' +
+        '<div class="pc-mid">' + donut(pct(st.ok, st.qs), 'Preguntas dominadas') + '<div><p class="pc-blurb">' + P.blurb + '</p><p class="muted">' + st.read + ' de ' + st.lessons + ' lecciones leídas · ' + st.ok + ' de ' + st.qs + ' preguntas dominadas</p></div></div>' +
+        '<div class="pc-secs">' + P.secs.map(s => {
+          const S = SECS[s], x = stats(ofSec(s));
+          return '<a class="pc-sec sec-' + s + '" href="#/' + s + '"><span class="glyph" aria-hidden="true">' + S.glyph + '</span><span class="pcs-t"><b>' + S.name + '</b><small>' + S.long + ' · ' + x.lessons + ' lecciones</small></span>' + bar(pct(x.read, x.lessons), 'Lecciones leídas de ' + S.name) + '</a>';
+        }).join('') + '</div><div class="row"><a class="btn" href="#/' + p + '">Ver el temario</a><a class="btn ghost" href="#/quiz/sim-' + p + '">Simulacro</a></div></section>';
+    };
+    const last = store.last && byId[store.last];
+    const nf = Object.keys(store.fail).filter(q => qById[q]).length;
     return '<section class="hero"><p class="over">Guía de estudio · UTN-FRT</p><h1>Paradigmas de Programación</h1>' +
-      '<p class="lead">Las diapositivas y las clases grabadas de la cátedra, reescritas como lecciones para leer de corrido, con ' + total + ' preguntas de repaso y ' + Object.keys(LABS).length + ' laboratorios interactivos.</p></section>' +
-      '<div class="sec-grid">' + cards + '</div>' +
-      (nf ? '<a class="callout" href="#/quiz/repaso"><strong>Tenés ' + nf + (nf === 1 ? ' pregunta fallada' : ' preguntas falladas') + ' para repasar.</strong><span>Volvé a intentarlas: salen de la lista cuando las respondés bien al primer intento. →</span></a>' : '') +
-      '<div class="tiles">' +
-      '<a class="tile" href="#/practica"><h3>Práctica</h3><p>Cuestionario por lección, simulacros por sección, final y repaso de lo fallado.</p></a>' +
-      '<a class="tile" href="#/labs"><h3>Laboratorios</h3><p>Consola Prolog con traza, árboles de foldr y foldl, órdenes de reducción y más.</p></a>' +
-      '<a class="tile" href="#/machete"><h3>Machete</h3><p>La sintaxis de los dos lenguajes en una sola página, para la víspera del parcial.</p></a>' +
-      '<a class="tile" href="#/biblio"><h3>Bibliografía</h3><p>Material de la cátedra, referencias y notas sobre diferencias de versión.</p></a></div>';
+      '<p class="lead">Las diapositivas, los apuntes y las clases grabadas de la cátedra, reescritos como ' + lessons.length + ' lecciones, con ' + allQ(lessons).length + ' preguntas de repaso, ' + Object.keys(LABS).filter(k => !LABS[k].hidden).length + ' laboratorios interactivos y ' + GLOS.length + ' tarjetas de memoria.</p>' +
+      (last ? '<a class="resume sec-' + last.sec + '" href="#/leccion/' + last.id + '"><span class="over">Seguí donde dejaste</span><b>' + last.title + '</b><small>' + SECS[last.sec].name + ' · lección ' + last.n + '</small></a>' : '') + '</section>' +
+      '<div class="parc-grid">' + parcCard('p1') + parcCard('p2') + '</div>' +
+      (nf ? '<a class="callout" href="#/quiz/repaso"><strong>Tenés ' + nf + (nf === 1 ? ' pregunta fallada' : ' preguntas falladas') + ' para repasar.</strong><span>Salen de la lista cuando las respondés bien al primer intento. →</span></a>' : '') +
+      '<h2 class="sub">Herramientas de estudio</h2><div class="tiles">' +
+      '<a class="tile" href="#/practica"><h3>Práctica y repaso</h3><p>Cuestionario por lección, simulacros por sección y por parcial, y repaso de lo que fallaste.</p></a>' +
+      '<a class="tile" href="#/tarjetas"><h3>Tarjetas de memoria</h3><p>Las definiciones clave con repetición espaciada: las que no sabés vuelven más seguido.</p></a>' +
+      '<a class="tile" href="#/labs"><h3>Laboratorios</h3><p>Memoria y referencias, polimorfismo, ventanas Swing, consola SQL, JDBC, Prolog y más.</p></a>' +
+      '<a class="tile" href="#/plan"><h3>Plan de estudio</h3><p>Cargá las fechas de los parciales y mirá cuánto te falta y qué conviene repasar.</p></a>' +
+      '<a class="tile" href="#/glosario"><h3>Glosario</h3><p>Todos los términos de la materia en un solo lugar, con un enlace a su lección.</p></a>' +
+      '<a class="tile" href="#/machete"><h3>Machete</h3><p>La sintaxis de Java, SQL, Haskell y Prolog en una página, para la víspera.</p></a></div>';
   }
 
+  function lessonRow(l) {
+    const best = store.best[l.id];
+    return '<li class="lesson-row sec-' + l.sec + '"><span class="num">' + l.n + '</span><div class="lr-main"><a class="lr-title" href="#/leccion/' + l.id + '">' + l.title + '</a><p>' + l.sub + '</p>' +
+      '<p class="lr-meta">' + (store.read[l.id] ? '<span class="badge ok">Leída</span>' : '<span class="badge">Sin leer</span>') +
+      (best !== undefined ? '<span class="badge ' + (best >= 70 ? 'ok' : 'warn') + '">Mejor nota: ' + best + ' %</span>' : '') + '<span class="muted">' + l.quiz.length + ' preguntas</span></p></div>' +
+      '<div class="lr-actions"><a class="btn" href="#/leccion/' + l.id + '">Leer</a><a class="btn ghost" href="#/quiz/' + l.id + '">Cuestionario</a></div></li>';
+  }
+  function parcial(p) {
+    const P = PARC[p], st = stats(ofParc(p));
+    return '<nav class="crumbs"><a href="#/">Inicio</a> / ' + P.name + '</nav><header class="page-head"><p class="over">' + P.short + '</p><h1>' + P.name + '</h1><p class="lead">' + P.blurb + '</p>' +
+      '<p class="muted">' + st.read + ' de ' + st.lessons + ' lecciones leídas · ' + st.ok + ' de ' + st.qs + ' preguntas dominadas · ' + countdown(p) + '</p></header>' +
+      P.secs.map(s => '<section class="sec-' + s + ' parc-sec"><h2 class="sub"><span class="glyph-inline" aria-hidden="true">' + SECS[s].glyph + '</span> <a href="#/' + s + '">' + SECS[s].name + '</a> <small class="muted">' + SECS[s].long + '</small></h2><ol class="lesson-list">' + ofSec(s).map(lessonRow).join('') + '</ol></section>').join('') +
+      '<div class="row end"><a class="btn" href="#/quiz/sim-' + p + '">Simulacro del ' + P.short + ' (20 preguntas)</a>' + (st.fail ? '<a class="btn ghost" href="#/quiz/repaso-' + p + '">Repasar las ' + st.fail + ' falladas</a>' : '') + '</div>';
+  }
   function section(sec) {
-    const S = SECS[sec], st = secStats(sec);
-    const rows = ofSec(sec).map(l => {
-      const best = store.best[l.id];
-      return '<li class="lesson-row"><span class="num">' + l.n + '</span><div class="lr-main"><a class="lr-title" href="#/leccion/' + l.id + '">' + l.title + '</a><p>' + l.sub + '</p>' +
-        '<p class="lr-meta">' + (store.read[l.id] ? '<span class="badge ok">Leída</span>' : '<span class="badge">Sin leer</span>') +
-        (best !== undefined ? '<span class="badge ' + (best >= 70 ? 'ok' : 'warn') + '">Mejor nota: ' + best + ' %</span>' : '') + '<span class="muted">' + l.quiz.length + ' preguntas</span></p></div>' +
-        '<div class="lr-actions"><a class="btn" href="#/leccion/' + l.id + '">Leer</a><a class="btn ghost" href="#/quiz/' + l.id + '">Cuestionario</a></div></li>';
-    }).join('');
-    const labs = Object.keys(LABS).filter(k => LABS[k].sec === sec).map(k => '<a class="chiplink" href="#/lab/' + k + '">' + LABS[k].title + '</a>').join('');
-    return '<header class="page-head"><p class="over">' + S.long + '</p><h1><span class="glyph-inline" aria-hidden="true">' + S.glyph + '</span> ' + S.name + '</h1><p class="lead">' + S.blurb + '</p>' +
+    const S = SECS[sec], st = stats(ofSec(sec)), P = PARC[S.p];
+    const labs = Object.keys(LABS).filter(k => LABS[k].sec === sec && !LABS[k].hidden).map(k => '<a class="chiplink" href="#/lab/' + k + '">' + LABS[k].title + '</a>').join('');
+    return '<nav class="crumbs"><a href="#/' + S.p + '">' + P.name + '</a> / ' + S.name + '</nav><header class="page-head"><p class="over">' + S.long + '</p><h1><span class="glyph-inline" aria-hidden="true">' + S.glyph + '</span> ' + S.name + '</h1><p class="lead">' + S.blurb + '</p>' +
       '<p class="muted">' + st.read + ' de ' + st.lessons + ' lecciones leídas · ' + st.ok + ' de ' + st.qs + ' preguntas dominadas' + (st.fail ? ' · ' + st.fail + ' para repasar' : '') + '</p></header>' +
-      '<ol class="lesson-list">' + rows + '</ol>' +
+      '<ol class="lesson-list">' + ofSec(sec).map(lessonRow).join('') + '</ol>' +
       '<div class="row end"><a class="btn" href="#/quiz/sim-' + sec + '">Simulacro de ' + S.name + ' (15 preguntas)</a>' + (st.fail ? '<a class="btn ghost" href="#/quiz/repaso-' + sec + '">Repasar las ' + st.fail + ' falladas</a>' : '') + '</div>' +
-      '<h2 class="sub">Laboratorios de esta sección</h2><p class="chips">' + labs + '</p>';
+      (labs ? '<h2 class="sub">Laboratorios de esta sección</h2><p class="chips">' + labs + '</p>' : '');
   }
 
   function lesson(id) {
     const l = byId[id];
     if (!l) return notFound();
-    const sib = ofSec(l.sec), i = sib.indexOf(l), prev = sib[i - 1], next = sib[i + 1];
-    const video = l.video ? '<div class="video" data-yt="' + l.video.id + '"><button type="button" class="video-btn" style="background-image:url(https://i.ytimg.com/vi/' + l.video.id + '/hqdefault.jpg)"><span class="play" aria-hidden="true">▶</span><span class="vt"><small>Clase grabada de la cátedra</small>' + l.video.title + '</span></button></div>' : '';
-    return '<article class="lesson"><nav class="crumbs"><a href="#/' + l.sec + '">' + SECS[l.sec].name + '</a> / Lección ' + l.n + '</nav>' +
+    const P = PARC[SECS[l.sec].p];
+    const seq = ofParc(SECS[l.sec].p), i = seq.indexOf(l), prev = seq[i - 1], next = seq[i + 1];
+    const vids = l.videos || (l.video ? [l.video] : []);
+    const video = vids.length ? '<div class="videos' + (vids.length > 1 ? ' multi' : '') + '">' + vids.map(v => '<div class="video" data-yt="' + v.id + '"><button type="button" class="video-btn" style="background-image:url(https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg)"><span class="play" aria-hidden="true">▶</span><span class="vt"><small>Clase grabada de la cátedra</small>' + esc(v.title) + '</span></button></div>').join('') + '</div>' : '';
+    const gl = GLOS.filter(g => g.l === id);
+    return '<article class="lesson"><nav class="crumbs"><a href="#/' + SECS[l.sec].p + '">' + P.name + '</a> / <a href="#/' + l.sec + '">' + SECS[l.sec].name + '</a> / Lección ' + l.n + '</nav>' +
       '<header class="page-head"><h1>' + l.title + '</h1><p class="lead">' + l.sub + '</p><p class="src">Fuente: ' + l.src + '</p></header>' +
-      '<div class="lesson-grid"><aside class="toc" aria-label="En esta lección"></aside><div class="prose">' + video + l.body + '</div></div>' +
+      '<div class="lesson-grid"><div class="prose">' + video + l.body +
+      (gl.length ? '<h2>Para memorizar</h2><dl class="mini-glos">' + gl.map(g => '<dt>' + esc(g.t) + '</dt><dd>' + esc(g.d) + '</dd>').join('') + '</dl><p><a class="btn ghost" href="#/tarjetas/' + l.sec + '">Practicar con tarjetas</a></p>' : '') +
+      '</div><aside class="toc" aria-label="En esta lección"></aside></div>' +
       '<footer class="lesson-foot"><label class="chk big"><input type="checkbox" id="read-chk"' + (store.read[id] ? ' checked' : '') + '> Marcar la lección como leída</label>' +
       '<a class="btn" href="#/quiz/' + id + '">Hacer el cuestionario (' + l.quiz.length + ' preguntas)</a></footer>' +
-      '<nav class="pager">' + (prev ? '<a href="#/leccion/' + prev.id + '">← ' + prev.title + '</a>' : '<span></span>') + (next ? '<a href="#/leccion/' + next.id + '">' + next.title + ' →</a>' : '<a href="#/quiz/sim-' + l.sec + '">Simulacro de ' + SECS[l.sec].name + ' →</a>') + '</nav></article>';
+      '<nav class="pager">' + (prev ? '<a href="#/leccion/' + prev.id + '">← ' + prev.title + '</a>' : '<span></span>') + (next ? '<a href="#/leccion/' + next.id + '">' + next.title + ' →</a>' : '<a href="#/quiz/sim-' + SECS[l.sec].p + '">Simulacro del ' + P.short + ' →</a>') + '</nav></article>';
   }
   function lessonAfter(id) {
+    store.last = id;
+    save();
     const chk = document.getElementById('read-chk');
-    if (chk) chk.onchange = () => { if (chk.checked) store.read[id] = true; else delete store.read[id]; save(); };
+    if (chk) chk.onchange = () => { if (chk.checked) store.read[id] = true; else delete store.read[id]; save(); renderSide(route()); };
     const toc = main.querySelector('.toc');
     const hs = Array.from(main.querySelectorAll('.prose > h2'));
     if (toc && hs.length) {
@@ -99,43 +206,198 @@
   }
 
   function practica() {
-    const nf = failed().length;
-    const secBlock = s => {
-      const rows = ofSec(s).map(l => {
-        const best = store.best[l.id];
-        return '<li><a href="#/quiz/' + l.id + '"><span class="num">' + l.n + '</span><span class="pt">' + l.title + '</span><span class="muted">' + l.quiz.length + ' preguntas</span>' +
-          (best !== undefined ? '<span class="badge ' + (best >= 70 ? 'ok' : 'warn') + '">' + best + ' %</span>' : '<span class="badge">sin hacer</span>') + '</a></li>';
-      }).join('');
-      return '<section class="sec-' + s + ' prac-sec"><h2>' + SECS[s].name + '</h2><ol class="prac-list">' + rows + '</ol><a class="btn" href="#/quiz/sim-' + s + '">Simulacro de ' + SECS[s].name + '</a></section>';
-    };
-    return '<header class="page-head"><p class="over">Práctica</p><h1>Cuestionarios</h1><p class="lead">Cada pregunta que fallás vuelve a aparecer al final del cuestionario hasta que la respondés bien, y queda guardada en el repaso.</p></header>' +
+    const nf = Object.keys(store.fail).filter(q => qById[q]).length;
+    const secBlock = s => '<section class="sec-' + s + ' prac-sec"><h3>' + SECS[s].name + '</h3><ol class="prac-list">' + ofSec(s).map(l => {
+      const best = store.best[l.id];
+      return '<li><a href="#/quiz/' + l.id + '"><span class="num">' + l.n + '</span><span class="pt">' + l.title + '</span>' +
+        (best !== undefined ? '<span class="badge ' + (best >= 70 ? 'ok' : 'warn') + '">' + best + ' %</span>' : '<span class="badge">sin hacer</span>') + '</a></li>';
+    }).join('') + '</ol><a class="btn ghost" href="#/quiz/sim-' + s + '">Simulacro de ' + SECS[s].name + '</a></section>';
+    return page('Práctica', 'Cuestionarios', 'Cada pregunta que fallás vuelve a aparecer al final del cuestionario hasta que la respondés bien, y queda guardada en el repaso. Con las teclas 1 a 4 se responde sin el mouse.',
       '<div class="tiles"><a class="tile strong" href="#/quiz/repaso"><h3>Repaso de lo fallado</h3><p>' + (nf ? nf + (nf === 1 ? ' pregunta pendiente.' : ' preguntas pendientes.') + ' Sale de la lista la que respondés bien al primer intento.' : 'No tenés preguntas pendientes. Cuando falles alguna, aparece acá.') + '</p></a>' +
-      '<a class="tile" href="#/quiz/final"><h3>Simulacro general</h3><p>20 preguntas al azar de toda la materia: Haskell y Prolog mezclados.</p></a></div>' +
-      '<div class="prac-grid">' + secBlock('haskell') + secBlock('prolog') + '</div>' +
-      '<p class="row end"><button type="button" class="btn ghost" id="reset-btn">Borrar todo mi progreso</button></p>';
+      '<a class="tile sec-objetos" href="#/quiz/sim-p1"><h3>Simulacro del 1.er parcial</h3><p>20 preguntas al azar de Objetos, Interfaz gráfica y Bases de datos.</p></a>' +
+      '<a class="tile sec-haskell" href="#/quiz/sim-p2"><h3>Simulacro del 2.º parcial</h3><p>20 preguntas al azar de Haskell y Prolog.</p></a>' +
+      '<a class="tile" href="#/quiz/final"><h3>Simulacro general</h3><p>25 preguntas de toda la materia.</p></a></div>' +
+      Object.keys(PARC).map(p => '<h2 class="sub">' + PARC[p].name + '</h2><div class="prac-grid">' + PARC[p].secs.map(secBlock).join('') + '</div>').join('') +
+      '<p class="row end"><button type="button" class="btn ghost" id="reset-btn">Borrar todo mi progreso</button></p>');
   }
 
   function labsPage() {
     const card = k => '<a class="tile sec-' + LABS[k].sec + '" href="#/lab/' + k + '"><span class="over">' + SECS[LABS[k].sec].name + '</span><h3>' + LABS[k].title + '</h3><p>' + LABS[k].desc + '</p></a>';
-    return '<header class="page-head"><p class="over">Laboratorios</p><h1>Para tocar y ver qué pasa</h1><p class="lead">Simuladores para los temas que se entienden mejor viéndolos moverse.</p></header><div class="tiles">' + Object.keys(LABS).map(card).join('') + '</div>';
+    return page('Laboratorios', 'Para tocar y ver qué pasa', 'Simuladores para los temas que se entienden mejor viéndolos moverse.',
+      Object.keys(PARC).map(p => '<h2 class="sub">' + PARC[p].name + '</h2><div class="tiles">' + Object.keys(LABS).filter(k => !LABS[k].hidden && SECS[LABS[k].sec].p === p).sort((a, b) => ORDER.indexOf(LABS[a].sec) - ORDER.indexOf(LABS[b].sec)).map(card).join('') + '</div>').join(''));
   }
   function labPage(id) {
-    if (!LABS[id]) return notFound();
-    const extra = id === 'prolog' ? '<p class="muted">Probá también con el programa «Listas» o el «Ejemplo integrador» desde el selector.</p>' : '';
-    return '<nav class="crumbs"><a href="#/labs">Laboratorios</a> / ' + LABS[id].title + '</nav><header class="page-head sec-' + LABS[id].sec + '"><h1>' + LABS[id].title + '</h1><p class="lead">' + LABS[id].desc + '</p></header>' + extra + '<div data-lab="' + id + '"></div>';
+    if (!LABS[id] || LABS[id].hidden) return notFound();
+    const L = LABS[id];
+    const where = lessons.filter(l => l.body.includes('data-lab="' + id));
+    return '<nav class="crumbs"><a href="#/labs">Laboratorios</a> / ' + L.title + '</nav><header class="page-head sec-' + L.sec + '"><h1>' + L.title + '</h1><p class="lead">' + L.desc + '</p>' +
+      (where.length ? '<p class="muted">Se explica en: ' + where.map(l => '<a href="#/leccion/' + l.id + '">' + l.title + '</a>').join(', ') + '</p>' : '') + '</header><div data-lab="' + id + '"></div>';
   }
-  const page = (over, title, lead, body) => '<header class="page-head"><p class="over">' + over + '</p><h1>' + title + '</h1><p class="lead">' + lead + '</p></header><div class="prose wide">' + body + '</div>';
-  const notFound = () => '<header class="page-head"><h1>No encontré esa página</h1><p class="lead"><a href="#/">Volver al inicio</a></p></header>';
+
+  // ---------- Tarjetas de memoria (Leitner) ----------
+  let fc = null;
+  function deckOf(f) {
+    if (!f) return GLOS;
+    if (PARC[f]) return GLOS.filter(g => SECS[g.s].p === f);
+    return GLOS.filter(g => g.s === f);
+  }
+  function tarjetas(f) {
+    if (!fc || fc.f !== (f || '')) {
+      const deck = deckOf(f);
+      const sorted = shuffle(deck).sort((a, b) => (store.cards[a.key] || 0) - (store.cards[b.key] || 0));
+      fc = { f: f || '', queue: sorted, i: 0, flip: false, done: { si: 0, mas: 0, no: 0 } };
+    }
+    const deck = deckOf(f);
+    const boxes = [0, 0, 0, 0, 0, 0];
+    deck.forEach(g => { boxes[store.cards[g.key] || 0]++; });
+    const chips = '<div class="chips deck">' + [['', 'Todas'], ['p1', '1.er parcial'], ['p2', '2.º parcial']].concat(ORDER.map(s => [s, SECS[s].name])).map(([k, n]) => '<a class="chiplink' + ((f || '') === k ? ' on' : '') + '" href="#/tarjetas' + (k ? '/' + k : '') + '">' + n + '</a>').join('') + '</div>';
+    const maxB = Math.max.apply(null, boxes) || 1;
+    const chart = '<div class="leitner" role="img" aria-label="Tarjetas por nivel">' + boxes.map((n, i) => '<div class="lb"><span class="lb-n">' + n + '</span><i style="height:' + Math.round(70 * n / maxB + 2) + 'px" class="lv' + i + '"></i><small>' + (i === 0 ? 'nuevas' : 'nivel ' + i) + '</small></div>').join('') + '</div>';
+    let card;
+    if (fc.i >= fc.queue.length) {
+      card = '<div class="fc-end"><h2>¡Ronda terminada!</h2><p>' + fc.done.si + ' sabidas · ' + fc.done.mas + ' más o menos · ' + fc.done.no + ' para repasar.</p><button type="button" class="btn" id="fc-again">Otra ronda</button></div>';
+    } else {
+      const g = fc.queue[fc.i];
+      card = '<div class="fc-wrap"><p class="muted">Tarjeta ' + (fc.i + 1) + ' de ' + fc.queue.length + ' · nivel ' + (store.cards[g.key] || 0) + '</p>' +
+        '<button type="button" class="fc' + (fc.flip ? ' flip' : '') + ' sec-' + g.s + '" id="fc-card" aria-label="Dar vuelta la tarjeta"><span class="fc-in"><span class="fc-front"><small>' + SECS[g.s].name + '</small><b>' + esc(g.t) + '</b><em>Tocá o presioná espacio para ver la definición</em></span>' +
+        '<span class="fc-back"><small>' + esc(g.t) + '</small><span>' + esc(g.d) + '</span><em>Lección: ' + esc(byId[g.l] ? byId[g.l].title : '') + '</em></span></span></button>' +
+        (fc.flip ? '<div class="fc-ans"><button type="button" class="btn ghost bad" data-fc="0">1 · No la sabía</button><button type="button" class="btn ghost" data-fc="1">2 · Más o menos</button><button type="button" class="btn" data-fc="2">3 · La sabía</button></div>' : '<div class="fc-ans"><button type="button" class="btn" id="fc-flip">Ver la definición</button></div>') + '</div>';
+    }
+    return page('Herramientas', 'Tarjetas de memoria', 'Leé el término, intentá recordar la definición y después dala vuelta. Las que sabés suben de nivel y aparecen menos; las que no, vuelven al principio (método Leitner).',
+      chips + '<div class="fc-grid"><div>' + card + '</div><div><p class="lbl">Tus tarjetas en este mazo</p>' + chart + '<p class="muted">' + deck.length + ' tarjetas. Nivel 5 = dominada.</p></div></div>');
+  }
+  function fcAnswer(v) {
+    const g = fc.queue[fc.i];
+    const b = store.cards[g.key] || 0;
+    store.cards[g.key] = v === 2 ? Math.min(5, b + 1) : v === 0 ? 0 : b;
+    fc.done[['no', 'mas', 'si'][v]]++;
+    if (v === 0) fc.queue.splice(Math.min(fc.queue.length, fc.i + 4), 0, g);
+    save();
+    fc.i++;
+    fc.flip = false;
+    draw();
+  }
+
+  // ---------- Glosario ----------
+  function glosario() {
+    return page('Herramientas', 'Glosario', 'Los términos de toda la materia, con su definición corta y un enlace a la lección donde se explican.',
+      '<div class="row"><input type="search" class="gl-q" placeholder="Filtrar términos…" aria-label="Filtrar términos"><div class="chips">' + [['', 'Todos']].concat(ORDER.map(s => [s, SECS[s].name])).map(([k, n]) => '<button type="button" class="chiplink gl-s' + (k === '' ? ' on' : '') + '" data-s="' + k + '">' + n + '</button>').join('') + '</div></div><div class="gl-list"></div>');
+  }
+  function glosarioAfter() {
+    let sec = '';
+    const q = main.querySelector('.gl-q');
+    const drawList = () => {
+      const n = norm(q.value.trim());
+      const items = GLOS.filter(g => (!sec || g.s === sec) && (!n || norm(g.t + ' ' + g.d).includes(n))).sort((a, b) => a.t.localeCompare(b.t, 'es'));
+      let letter = '', h = '';
+      for (const g of items) {
+        const L = norm(g.t)[0].toUpperCase();
+        if (L !== letter) { if (letter) h += '</dl>'; letter = L; h += '<h3 class="gl-l">' + L + '</h3><dl class="gl">'; }
+        h += '<dt class="sec-' + g.s + '"><span class="dot" aria-hidden="true"></span>' + esc(g.t) + '</dt><dd>' + esc(g.d) + ' <a href="#/leccion/' + g.l + '">' + esc(byId[g.l] ? byId[g.l].title : '') + ' →</a></dd>';
+      }
+      main.querySelector('.gl-list').innerHTML = items.length ? h + '</dl>' : '<p class="muted">No hay términos que coincidan.</p>';
+    };
+    q.oninput = drawList;
+    main.querySelectorAll('.gl-s').forEach(b => { b.onclick = () => { sec = b.dataset.s; main.querySelectorAll('.gl-s').forEach(x => x.classList.toggle('on', x === b)); drawList(); }; });
+    drawList();
+  }
+
+  // ---------- Buscador ----------
+  let INDEX = null;
+  function buildIndex() {
+    const div = document.createElement('div');
+    INDEX = lessons.map(l => {
+      div.innerHTML = l.body.replace(/<(?=\/?(td|th|li|p|h2|h3|dt|dd|tr|div|figure|blockquote)\b)/g, ' <');
+      const text = div.textContent.replace(/\s+/g, ' ').trim();
+      return { l, text, n: norm(text), heads: Array.from(div.querySelectorAll('h2, h3')).map(h => h.textContent.trim()) };
+    });
+  }
+  function buscar(q) {
+    return page('Herramientas', 'Buscar', '', '<input type="search" class="bq" value="' + esc(q || '') + '" placeholder="Por ejemplo: polimorfismo, foldr, JTable, backtracking" aria-label="Buscar en la guía"><div class="bres" aria-live="polite"></div>');
+  }
+  function buscarAfter() {
+    if (!INDEX) buildIndex();
+    const inp = main.querySelector('.bq');
+    const run = () => {
+      const raw = inp.value.trim(), n = norm(raw);
+      if (n.length < 2) { main.querySelector('.bres').innerHTML = '<p class="muted">Escribí al menos dos letras.</p>'; return; }
+      const mark = (txt, nt, at, len) => esc(txt.slice(Math.max(0, at - 70), at)) + '<mark>' + esc(txt.slice(at, at + len)) + '</mark>' + esc(txt.slice(at + len, at + len + 90));
+      const res = [];
+      for (const x of INDEX) {
+        let score = 0;
+        if (norm(x.l.title).includes(n)) score += 10;
+        if (norm(x.l.sub).includes(n)) score += 4;
+        const hh = x.heads.filter(h => norm(h).includes(n));
+        score += hh.length * 3;
+        let count = 0, at = x.n.indexOf(n), first = at;
+        while (at >= 0 && count < 20) { count++; at = x.n.indexOf(n, at + n.length); }
+        score += count;
+        if (score) res.push({ x, score, hh, first, count });
+      }
+      res.sort((a, b) => b.score - a.score);
+      const gl = GLOS.filter(g => norm(g.t + ' ' + g.d).includes(n)).slice(0, 8);
+      const lb = Object.keys(LABS).filter(k => !LABS[k].hidden && norm(LABS[k].title + ' ' + LABS[k].desc).includes(n));
+      let h = '';
+      if (gl.length) h += '<h2 class="sub">En el glosario</h2><dl class="gl">' + gl.map(g => '<dt class="sec-' + g.s + '"><span class="dot"></span>' + esc(g.t) + '</dt><dd>' + esc(g.d) + ' <a href="#/leccion/' + g.l + '">Ir a la lección →</a></dd>').join('') + '</dl>';
+      if (lb.length) h += '<h2 class="sub">Laboratorios</h2><p class="chips">' + lb.map(k => '<a class="chiplink" href="#/lab/' + k + '">' + LABS[k].title + '</a>').join('') + '</p>';
+      h += '<h2 class="sub">Lecciones (' + res.length + ')</h2>' + (res.length ? '<ol class="bl">' + res.map(r => '<li class="sec-' + r.x.l.sec + '"><a href="#/leccion/' + r.x.l.id + '"><b>' + r.x.l.title + '</b></a> <span class="muted">' + SECS[r.x.l.sec].name + (r.count ? ' · ' + r.count + (r.count === 1 ? ' coincidencia' : ' coincidencias') : '') + '</span>' +
+        (r.hh.length ? '<p class="bh">Secciones: ' + r.hh.map(esc).join(' · ') + '</p>' : '') + (r.first >= 0 ? '<p class="snip">…' + mark(r.x.text, r.x.n, r.first, n.length) + '…</p>' : '') + '</li>').join('') + '</ol>' : '<p class="muted">Ninguna lección menciona «' + esc(raw) + '».</p>');
+      main.querySelector('.bres').innerHTML = h;
+    };
+    inp.oninput = () => { history.replaceState(null, '', '#/buscar/' + encodeURIComponent(inp.value.trim())); run(); };
+    inp.focus();
+    inp.setSelectionRange(inp.value.length, inp.value.length);
+    run();
+  }
+
+  // ---------- Plan de estudio ----------
+  function plan() {
+    const block = p => {
+      const P = PARC[p], ls = ofParc(p), st = stats(ls), n = daysTo(store.dates[p]);
+      const pend = ls.filter(l => !store.read[l.id]);
+      const weak = ls.filter(l => store.best[l.id] !== undefined && store.best[l.id] < 70);
+      const fails = P.secs.map(s => [s, failedIn(ofSec(s)).length]);
+      const maxF = Math.max.apply(null, fails.map(x => x[1])) || 1;
+      let tip;
+      if (n === null) tip = 'Cargá la fecha para ver cuántas lecciones por día te conviene leer.';
+      else if (n < 0) tip = 'La fecha ya pasó. Si te toca el recuperatorio, cargá la nueva fecha.';
+      else if (!pend.length) tip = 'Ya leíste todo. Usá los días que quedan para simulacros, el repaso de lo fallado y las tarjetas.';
+      else tip = 'Te quedan <b>' + pend.length + '</b> lecciones por leer en <b>' + n + '</b> ' + (n === 1 ? 'día' : 'días') + ': unas <b>' + Math.max(1, Math.ceil(pend.length / Math.max(1, n - 1))) + '</b> por día, dejando el último día para un simulacro.';
+      return '<section class="plan-card"><div class="pc-top"><div><p class="over">' + P.short + '</p><h2>' + P.name + '</h2></div>' + countdown(p) + '</div>' +
+        '<label class="plan-date">Fecha del parcial <input type="date" data-p="' + p + '" value="' + (store.dates[p] || '') + '"></label>' +
+        '<div class="plan-donuts">' + donut(pct(st.read, st.lessons), 'Lecciones leídas', 'sm') + '<span>lecciones leídas</span>' + donut(pct(st.ok, st.qs), 'Preguntas dominadas', 'sm') + '<span>preguntas dominadas</span></div>' +
+        '<p class="tip">' + tip + '</p>' +
+        (pend.length ? '<p class="lbl">Por leer</p><ol class="plan-list">' + pend.map(l => '<li class="sec-' + l.sec + '"><span class="dot"></span><a href="#/leccion/' + l.id + '">' + l.title + '</a></li>').join('') + '</ol>' : '') +
+        (weak.length ? '<p class="lbl">Cuestionarios por debajo del 70 %</p><ol class="plan-list">' + weak.map(l => '<li class="sec-' + l.sec + '"><span class="dot"></span><a href="#/quiz/' + l.id + '">' + l.title + '</a> <span class="badge warn">' + store.best[l.id] + ' %</span></li>').join('') + '</ol>' : '') +
+        '<p class="lbl">Preguntas falladas pendientes, por sección</p><div class="hbars">' + fails.map(([s, k]) => '<div class="hb sec-' + s + '"><span>' + SECS[s].name + '</span><i style="width:' + (k ? Math.max(4, Math.round(100 * k / maxF)) : 0) + '%"></i><b>' + k + '</b></div>').join('') + '</div>' +
+        '<div class="row"><a class="btn" href="#/quiz/sim-' + p + '">Simulacro</a>' + (st.fail ? '<a class="btn ghost" href="#/quiz/repaso-' + p + '">Repasar falladas</a>' : '') + '<a class="btn ghost" href="#/tarjetas/' + p + '">Tarjetas</a></div></section>';
+    };
+    return page('Herramientas', 'Plan de estudio', 'Cargá la fecha de cada parcial y la guía te dice cuánto te falta, qué conviene leer y dónde estás fallando. Todo queda guardado en este navegador.',
+      '<div class="parc-grid">' + block('p1') + block('p2') + '</div>');
+  }
+  function planAfter() {
+    main.querySelectorAll('input[type=date]').forEach(i => {
+      i.onchange = () => { if (i.value) store.dates[i.dataset.p] = i.value; else delete store.dates[i.dataset.p]; save(); draw(); };
+    });
+  }
 
   // ---------- Cuestionarios ----------
   let quiz = null;
   function buildQuiz(id) {
     let pool, title, sec = '', back = '#/practica', keep = true;
     if (byId[id]) { pool = allQ([byId[id]]); title = byId[id].title; sec = byId[id].sec; back = '#/leccion/' + id; }
-    else if (id === 'sim-haskell' || id === 'sim-prolog') { sec = id.slice(4); pool = shuffle(allQ(ofSec(sec))).slice(0, 15); title = 'Simulacro de ' + SECS[sec].name; back = '#/' + sec; }
-    else if (id === 'final') { pool = shuffle(allQ(lessons)).slice(0, 20); title = 'Simulacro general'; }
-    else if (id.indexOf('repaso') === 0) { sec = id.split('-')[1] || ''; pool = failed(sec).map(q => qById[q]); title = 'Repaso de lo fallado' + (sec ? ': ' + SECS[sec].name : ''); keep = false; }
-    else return null;
+    else if (/^sim-/.test(id) && SECS[id.slice(4)]) { sec = id.slice(4); pool = shuffle(allQ(ofSec(sec))).slice(0, 15); title = 'Simulacro de ' + SECS[sec].name; back = '#/' + sec; }
+    else if (/^sim-/.test(id) && PARC[id.slice(4)]) { const p = id.slice(4); pool = shuffle(allQ(ofParc(p))).slice(0, 20); title = 'Simulacro del ' + PARC[p].short; back = '#/' + p; sec = PARC[p].secs[0]; }
+    else if (id === 'final') { pool = shuffle(allQ(lessons)).slice(0, 25); title = 'Simulacro general'; }
+    else if (/^repaso/.test(id)) {
+      const f = id.split('-')[1] || '';
+      const ls = !f ? lessons : PARC[f] ? ofParc(f) : SECS[f] ? ofSec(f) : null;
+      if (!ls) return null;
+      pool = failedIn(ls).map(q => qById[q]);
+      title = 'Repaso de lo fallado' + (f ? ': ' + (PARC[f] ? PARC[f].name : SECS[f].name) : '');
+      keep = false;
+      if (SECS[f]) sec = f;
+    } else return null;
     return { id, title, sec, back, keep, queue: shuffle(pool).map(x => ({ x, retry: false })), pos: 0, total: pool.length, firstOk: 0, missed: [], cur: null };
   }
   function quizView() {
@@ -160,7 +422,7 @@
     }
     return '<div class="quiz sec-' + item.x.lesson.sec + '"><nav class="crumbs"><a href="' + z.back + '">← Salir</a> / ' + z.title + '</nav>' +
       '<div class="quiz-top"><span>Pregunta ' + (z.pos + 1) + ' de ' + z.queue.length + (retries ? ' <span class="muted">(incluye ' + retries + (retries === 1 ? ' reintento' : ' reintentos') + ')</span>' : '') + '</span>' +
-      (item.retry ? '<span class="badge warn">Reintento</span>' : '') + '</div>' + bar(pct(z.pos, z.queue.length), 'Avance del cuestionario') +
+      '<span><span class="badge">' + SECS[item.x.lesson.sec].name + '</span>' + (item.retry ? '<span class="badge warn">Reintento</span>' : '') + '</span></div>' + bar(pct(z.pos, z.queue.length), 'Avance del cuestionario') +
       '<h2 class="qtext">' + q.q + '</h2><div class="opts">' + opts + '</div>' + fb + '</div>';
   }
   function answer(oi) {
@@ -182,54 +444,63 @@
   }
   function quizEnd() {
     const z = quiz, p = pct(z.firstOk, z.total);
-    if (z.keep && !z.saved) { store.best[z.id] = Math.max(store.best[z.id] || 0, p); z.saved = true; save(); }
+    if (z.keep && !z.saved) { if (byId[z.id]) store.best[z.id] = Math.max(store.best[z.id] || 0, p); z.saved = true; save(); }
     const msg = p === 100 ? 'Impecable.' : p >= 70 ? 'Bien. Repasá las que fallaste y queda cerrado.' : 'Todavía falta. Releé la lección y volvé a intentarlo.';
-    const missed = z.missed.length ? '<h2 class="sub">Las que fallaste al primer intento</h2><ul class="missed">' + z.missed.map(x => '<li><p class="mq">' + x.q.q + '</p><p><span class="badge ok">Respuesta</span> ' + x.q.o[0] + '</p><p class="muted">' + x.q.e + '</p></li>').join('') + '</ul>' : '';
-    const nf = failed().length;
+    const missed = z.missed.length ? '<h2 class="sub">Las que fallaste al primer intento</h2><ul class="missed">' + z.missed.map(x => '<li><p class="mq">' + x.q.q + '</p><p><span class="badge ok">Respuesta</span> ' + x.q.o[0] + '</p><p class="muted">' + x.q.e + ' <a href="#/leccion/' + x.lesson.id + '">Ver la lección</a></p></li>').join('') + '</ul>' : '';
+    const nf = Object.keys(store.fail).filter(q => qById[q]).length;
     return '<div class="quiz"><header class="page-head"><p class="over">' + z.title + '</p><h1>' + z.firstOk + ' de ' + z.total + ' al primer intento</h1>' + bar(p, 'Resultado') + '<p class="lead">' + p + ' %. ' + msg + '</p></header>' +
       '<div class="row">' + (nf ? '<a class="btn" href="#/quiz/repaso" data-restart="repaso">Repasar las falladas (' + nf + ')</a>' : '') + '<a class="btn ghost" href="#/quiz/' + z.id + '" data-restart="' + z.id + '">Hacerlo de nuevo</a><a class="btn ghost" href="' + z.back + '">Volver</a></div>' + missed + '</div>';
   }
 
   // ---------- Router ----------
   function route() {
-    const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-    return { name: parts[0] || 'home', arg: parts[1] || '' };
+    const h = location.hash.replace(/^#\/?/, '');
+    const i = h.indexOf('/');
+    const name = (i < 0 ? h : h.slice(0, i)) || 'home';
+    let arg = i < 0 ? '' : h.slice(i + 1);
+    try { arg = decodeURIComponent(arg); } catch (e) { /* se usa tal cual */ }
+    return { name, arg };
   }
   let lastHash = null;
   function draw() {
     const r = route();
     let html, after = null, sec = '';
+    if (r.name !== 'tarjetas') fc = r.name === 'tarjetas' ? fc : null;
     if (r.name === 'quiz') {
-      if (!quiz || quiz.id !== r.arg || quiz.hash !== location.hash + '#' + (quiz.nonce || '')) { quiz = buildQuiz(r.arg); if (quiz) { quiz.nonce = Date.now(); quiz.hash = location.hash + '#' + quiz.nonce; } }
+      if (!quiz || quiz.id !== r.arg || quiz.hash !== location.hash) { quiz = buildQuiz(r.arg); if (quiz) quiz.hash = location.hash; }
       html = quiz ? quizView() : notFound();
       sec = quiz ? quiz.sec : '';
     } else {
       quiz = null;
       if (r.name === 'home') html = home();
+      else if (PARC[r.name]) html = parcial(r.name);
       else if (SECS[r.name]) { html = section(r.name); sec = r.name; }
       else if (r.name === 'leccion') { html = lesson(r.arg); sec = byId[r.arg] ? byId[r.arg].sec : ''; after = () => lessonAfter(r.arg); }
       else if (r.name === 'practica') html = practica();
       else if (r.name === 'labs') html = labsPage();
       else if (r.name === 'lab') { html = labPage(r.arg); sec = LABS[r.arg] ? LABS[r.arg].sec : ''; }
-      else if (r.name === 'machete') html = page('Machete', 'Todo en una página', 'La sintaxis y las reglas que más se preguntan, para repasar rápido. No reemplaza a las lecciones.', PDP.pages.machete);
-      else if (r.name === 'biblio') html = page('Bibliografía', 'De dónde sale cada cosa', 'El material de la cátedra, las referencias para ampliar y las notas sobre diferencias con el material.', PDP.pages.biblio);
+      else if (r.name === 'tarjetas') { const f = PARC[r.arg] || SECS[r.arg] ? r.arg : ''; html = tarjetas(f); sec = SECS[f] ? f : ''; }
+      else if (r.name === 'glosario') { html = glosario(); after = glosarioAfter; }
+      else if (r.name === 'buscar') { html = buscar(r.arg); after = buscarAfter; }
+      else if (r.name === 'plan') { html = plan(); after = planAfter; }
+      else if (r.name === 'machete') html = page('Machete', 'Todo en una página', 'La sintaxis y las reglas que más se preguntan, para repasar rápido. No reemplaza a las lecciones.', '<div class="prose wide">' + PDP.pages.machete + '</div>');
+      else if (r.name === 'biblio') html = page('Bibliografía', 'De dónde sale cada cosa', 'El material de la cátedra, las referencias para ampliar y las notas sobre diferencias con el material.', '<div class="prose wide">' + PDP.pages.biblio + '</div>');
       else html = notFound();
     }
     document.body.dataset.sec = sec;
     main.innerHTML = html;
     window.mountLabs(main);
-    main.querySelectorAll('.prose table').forEach(t => { const w = document.createElement('div'); w.className = 'table-wrap'; t.parentNode.insertBefore(w, t); w.appendChild(t); });
+    main.querySelectorAll('.prose table').forEach(t => { if (t.closest('.lab, .dbtable')) return; const w = document.createElement('div'); w.className = 'table-wrap'; t.parentNode.insertBefore(w, t); w.appendChild(t); });
     if (after) after();
-    document.querySelectorAll('.nav a').forEach(a => {
-      const t = a.getAttribute('href').replace('#/', '') || 'home';
-      const on = t === r.name || (t === sec && (r.name === 'leccion')) || (t === 'practica' && r.name === 'quiz') || (t === 'labs' && r.name === 'lab');
-      a.classList.toggle('on', on);
-      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
-    });
-    const titles = { home: '', haskell: 'Haskell', prolog: 'Prolog', practica: 'Práctica', labs: 'Laboratorios', machete: 'Machete', biblio: 'Bibliografía' };
-    const t = r.name === 'leccion' && byId[r.arg] ? byId[r.arg].title : r.name === 'quiz' && quiz ? quiz.title : r.name === 'lab' && LABS[r.arg] ? LABS[r.arg].title : titles[r.name] || '';
+    renderSide(r);
+    const titles = { home: '', practica: 'Práctica', labs: 'Laboratorios', machete: 'Machete', biblio: 'Bibliografía', tarjetas: 'Tarjetas de memoria', glosario: 'Glosario', buscar: 'Buscar', plan: 'Plan de estudio' };
+    const t = r.name === 'leccion' && byId[r.arg] ? byId[r.arg].title : r.name === 'quiz' && quiz ? quiz.title : r.name === 'lab' && LABS[r.arg] ? LABS[r.arg].title : PARC[r.name] ? PARC[r.name].name : SECS[r.name] ? SECS[r.name].name : titles[r.name] || '';
     document.title = (t ? t + ' · ' : '') + 'Paradigmas de Programación';
-    if (lastHash !== location.hash) { window.scrollTo(0, 0); lastHash = location.hash; }
+    if (lastHash !== location.hash) {
+      const sameSearch = lastHash && /^#\/buscar/.test(lastHash) && /^#\/buscar/.test(location.hash);
+      if (!sameSearch) window.scrollTo(0, 0);
+      lastHash = location.hash;
+    }
   }
 
   main.addEventListener('click', e => {
@@ -238,13 +509,25 @@
     if (e.target.id === 'next-btn' && quiz) { quiz.pos++; draw(); window.scrollTo(0, 0); return; }
     const rs = e.target.closest('[data-restart]');
     if (rs) { quiz = null; if (location.hash === rs.getAttribute('href')) { e.preventDefault(); draw(); window.scrollTo(0, 0); } return; }
+    if (e.target.closest('#fc-card') || e.target.id === 'fc-flip') { if (fc) { fc.flip = !fc.flip; draw(); } return; }
+    const fa = e.target.closest('[data-fc]');
+    if (fa && fc) { fcAnswer(+fa.dataset.fc); return; }
+    if (e.target.id === 'fc-again') { fc = null; draw(); return; }
+    const jump = e.target.closest('[data-jump]');
+    if (jump) { e.preventDefault(); const t = document.getElementById(jump.dataset.jump); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     if (e.target.id === 'reset-btn') {
-      if (window.confirm('¿Borrar las lecciones leídas, las notas y la lista de preguntas falladas? No se puede deshacer.')) { store = { read: {}, best: {}, fail: {}, seen: {} }; save(); draw(); }
+      if (window.confirm('¿Borrar las lecciones leídas, las notas, las tarjetas y la lista de preguntas falladas? No se puede deshacer.')) { const d = store.dates; store = fresh(); store.dates = d; save(); draw(); }
     }
   });
   document.addEventListener('keydown', e => {
-    if (!quiz || !quiz.cur || e.target.matches('input, textarea, select')) return;
-    if (quiz.cur.chosen === null && /^[1-4]$/.test(e.key)) { const oi = quiz.cur.order[+e.key - 1]; if (oi !== undefined) answer(oi); }
+    if (e.target.matches('input, textarea, select')) return;
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey) { const q = document.getElementById('side-q'); if (q) { e.preventDefault(); document.body.classList.add('side-open'); q.focus(); } return; }
+    if (e.key === 'Escape') document.body.classList.remove('side-open');
+    if (quiz && quiz.cur && quiz.cur.chosen === null && /^[1-4]$/.test(e.key)) { const oi = quiz.cur.order[+e.key - 1]; if (oi !== undefined) answer(oi); return; }
+    if (fc && route().name === 'tarjetas' && fc.i < fc.queue.length) {
+      if (e.key === ' ' || e.key === 'Enter') { if (e.target.closest && e.target.closest('a')) return; e.preventDefault(); fc.flip = !fc.flip; draw(); }
+      else if (fc.flip && /^[1-3]$/.test(e.key)) fcAnswer(+e.key - 1);
+    }
   });
   window.addEventListener('hashchange', draw);
 

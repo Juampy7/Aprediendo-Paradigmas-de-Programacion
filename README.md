@@ -2,18 +2,27 @@
 
 **Sitio: [juampy7.github.io/Aprediendo-Paradigmas-de-Programacion](https://juampy7.github.io/Aprediendo-Paradigmas-de-Programacion/)**
 
-Guía de estudio de **Paradigmas de Programación** (UTN-FRT), armada con las diapositivas y las clases grabadas de la cátedra. Está dividida en dos secciones, cada una con su color:
+Guía de estudio de **Paradigmas de Programación** (UTN-FRT), armada con las diapositivas, los apuntes y las clases grabadas de la cátedra. Una barra lateral ordena todo el contenido por parcial, y cada sección tiene su color:
 
-- **Haskell** (violeta): programación funcional y evaluación, tipos y operadores, patrones y guardas, orden superior y polimorfismo, definiciones de tipo, sistema de clases, listas, plegados y ordenación. Sigue los capítulos 1 a 6 de las diapositivas.
-- **Prolog** (naranja): hechos, reglas y consultas, cláusulas de Horn, unificación y backtracking, depuración, aritmética y recursión, listas, `findall`, functores y un ejemplo integrador. Sigue los temas de los tres videos de Prolog y la unidad 4 del programa.
+**Primer parcial: programación orientada a objetos con Java**
 
-Contenido:
+- **Objetos** (verde azulado): paradigmas y lenguajes, clases y referencias, encapsulamiento y constructores, herencia, polimorfismo, agregación y composición, UML y el punto de venta.
+- **Interfaz gráfica** (azul): Swing y eventos, JTable y varias ventanas, el patrón MVC.
+- **Bases de datos** (magenta): SQL, JDBC y una ventana CRUD conectada a la base.
 
-- 12 lecciones (8 de Haskell y 4 de Prolog), cada una con el video de la clase correspondiente.
-- 139 preguntas de opción múltiple con explicación. La que fallás **vuelve a aparecer al final del cuestionario** hasta que la respondés bien, y queda guardada en el **repaso de lo fallado** hasta que la acertás al primer intento.
-- Cuestionario por lección, simulacro por sección y simulacro general.
-- 7 laboratorios interactivos: órdenes de reducción, aplicación parcial y tipos, listas por comprensión, árboles de `foldr` y `foldl`, algoritmos de ordenación, **consola Prolog con traza** y probador de unificación.
-- Machete con la sintaxis de los dos lenguajes y página de bibliografía con notas sobre el material.
+**Segundo parcial: paradigmas funcional y lógico**
+
+- **Haskell** (violeta): programación funcional y evaluación, tipos, patrones, orden superior, definiciones de tipo, clases, listas y plegados. Sigue los capítulos 1 a 6 de las diapositivas.
+- **Prolog** (naranja): hechos, reglas y consultas, unificación y backtracking, aritmética y recursión, listas, `findall` y functores.
+
+## Qué tiene
+
+- **25 lecciones**, cada una con los videos de su clase, un índice lateral y un resumen «Para memorizar».
+- **276 preguntas** con explicación. La que fallás vuelve a aparecer al final del cuestionario hasta que la respondés bien, y queda en el **repaso de lo fallado** hasta que la acertás al primer intento. Cuestionario por lección, simulacro por sección, por parcial y general.
+- **20 laboratorios interactivos**:
+  - *Primer parcial*: un problema en cuatro paradigmas, referencias en memoria, modificadores de acceso, constructores y herencia, tipo estático y dinámico con sobrecarga, vida de las partes (agregación y composición), el punto de venta en UML, eventos en Swing, JTable, el recorrido MVC, consola SQL, JDBC paso a paso y una ventana CRUD con demostración de inyección SQL.
+  - *Segundo parcial*: órdenes de reducción, aplicación parcial, listas por comprensión, `foldr` contra `foldl`, algoritmos de ordenación, consola Prolog con traza y probador de unificación.
+- **Herramientas de estudio**: tarjetas de memoria con repetición espaciada (método Leitner), glosario de 100 términos, buscador en toda la guía (tecla `/`), plan de estudio con cuenta regresiva a cada parcial y gráficos de avance, machete de Java, SQL, Haskell y Prolog, y bibliografía.
 
 No necesita instalación: es HTML, CSS y JavaScript sin dependencias. El progreso se guarda en el navegador (`localStorage`).
 
@@ -32,13 +41,16 @@ y entrá a `http://localhost:8123`.
 ```
 index.html
 css/styles.css
-js/app.js                 navegación, cuestionarios y progreso
-js/labs.js                laboratorios interactivos
-js/prolog.js              mini intérprete de Prolog (consola y unificación)
-js/programas.js           programas Prolog de ejemplo de la consola
-js/content/_helpers.js    registro de lecciones y resaltado de código
-js/content/h1…h8-*.js     lecciones de Haskell
-js/content/p1…p4-*.js     lecciones de Prolog
+js/app.js                 barra lateral, navegación, cuestionarios, tarjetas, glosario, buscador, plan y progreso
+js/labs.js                laboratorios del segundo parcial
+js/labs-poo.js            laboratorios y diagramas UML del primer parcial
+js/prolog.js              mini intérprete de Prolog
+js/sql.js                 mini motor SQL (consola, JDBC y CRUD)
+js/programas.js           programas Prolog de ejemplo
+js/content/_helpers.js    registro de lecciones y resaltado de Java, SQL, Haskell y Prolog
+js/content/o*, i*, d*     lecciones del primer parcial (objetos, interfaz, datos)
+js/content/h*, p*         lecciones del segundo parcial (Haskell, Prolog)
+js/content/glosario.js    términos del glosario y de las tarjetas
 js/content/paginas.js     machete y bibliografía
 tests/                    pruebas (Node)
 ```
@@ -52,22 +64,35 @@ node tests/prolog.test.js
 ```
 
 ```bash
+node tests/sql.test.js
+```
+
+```bash
 node tests/content.test.js
 ```
 
-La primera controla el intérprete de Prolog. La segunda controla la estructura de las lecciones, que cada pregunta tenga cuatro opciones distintas y que los programas de la consola respondan lo que dice la guía.
+Controlan el intérprete de Prolog, el motor SQL y la estructura del contenido: cuatro opciones distintas por pregunta, laboratorios y lecciones que existen, y que los programas de ejemplo respondan lo que dice la guía.
 
 ## Publicar en GitHub Pages
 
-1. Subí los cambios: `git add -A`, `git commit -m "mensaje"`, `git push`.
-2. En GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, rama `main`, carpeta `/ (root)`, **Save**.
-3. En uno o dos minutos el sitio queda en `https://juampy7.github.io/Aprediendo-Paradigmas-de-Programacion/`.
+Cada `git push` a `main` actualiza el sitio en uno o dos minutos:
 
-Cada `git push` posterior actualiza el sitio solo.
+```bash
+git add -A
+```
+
+```bash
+git commit -m "describí el cambio"
+```
+
+```bash
+git push
+```
 
 ## Notas sobre el material
 
-- Las diapositivas usan el intérprete Hugs; la guía muestra las sesiones como en GHCi. Los patrones `n + k` y `import Ratio` de las diapositivas ya no son válidos en GHC: se explican y se da la forma actual.
-- No hay diapositivas de Prolog: esas lecciones siguen los temas de los videos de la cátedra, el programa de la materia, [pdep.com.ar](https://www.pdep.com.ar/) y Wikipedia. Los ejemplos son propios de la guía.
-- La consola Prolog es un intérprete reducido para practicar; no reemplaza a SWI-Prolog.
+- Las diapositivas de Haskell usan el intérprete Hugs; la guía muestra las sesiones como en GHCi. Los patrones `n + k` y `import Ratio` ya no son válidos en GHC: se explican y se da la forma actual.
+- No hay diapositivas de Prolog: esas lecciones siguen los temas de los videos, el programa, [pdep.com.ar](https://www.pdep.com.ar/) y Wikipedia. Los ejemplos son propios de la guía.
+- Del apunte de POO, las partes marcadas para completar (Swing, JDBC, CRUD, MVC) se escribieron con los títulos de los videos y la documentación de Java. El diagrama del punto de venta es una propuesta para verificar con la clase grabada.
+- La consola Prolog y el motor SQL son simuladores reducidos para practicar; no reemplazan a SWI-Prolog ni a MySQL/MariaDB.
 - Guía no oficial. Las diapositivas y los videos pertenecen a la cátedra y no se incluyen en el repositorio: los videos se enlazan desde YouTube.
