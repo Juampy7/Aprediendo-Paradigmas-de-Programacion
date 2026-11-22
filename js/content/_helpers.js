@@ -60,6 +60,8 @@
     swipl: (s, ...v) => block('pl', 'Consulta', session(dedent(raw(s, v)), '?- ', plHl)),
     txt: (s, ...v) => block('txt', 'Reducción', esc(dedent(raw(s, v)))),
     lab: id => '<div class="lab-slot" data-lab="' + id + '"></div>',
+    // archivo de código con su nombre como título: PDP.file('Apuesta.java', String.raw`...`)
+    file: (name, code) => { const isSql = /\.sql$/i.test(name); return block(isSql ? 'sql' : 'java', esc(name), (isSql ? sqlHl : javaHl)(dedent(code))); },
     // código en línea dentro de preguntas: c`map (+1)`
     c: (s, ...v) => '<code>' + esc(raw(s, v)) + '</code>'
   };

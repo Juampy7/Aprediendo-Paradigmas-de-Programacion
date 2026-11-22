@@ -9,6 +9,7 @@ Guía de estudio de **Paradigmas de Programación** (UTN-FRT), armada con las di
 - **Objetos** (verde azulado): paradigmas y lenguajes, clases y referencias, encapsulamiento y constructores, herencia, polimorfismo, agregación y composición, UML y el punto de venta.
 - **Interfaz gráfica** (azul): Swing y eventos, JTable y varias ventanas, el patrón MVC.
 - **Bases de datos** (magenta): SQL, JDBC y una ventana CRUD conectada a la base.
+- **Ejercicios de parcial** (ámbar): 3 enunciados de parciales reales y 6 inventados con el mismo estilo (estacionamiento, stock, torneo, gimnasio, elecciones, turnos de pádel). Cada uno trae el análisis, el diagrama UML, una ventana simulada para probar y **dos resoluciones completas**: una sin MVC con arreglos (`ArrayList`) y otra con MVC y persistencia en MariaDB/MySQL con JDBC. Las 18 resoluciones compilan con Java 25.
 
 **Segundo parcial: paradigmas funcional y lógico**
 
@@ -44,6 +45,7 @@ css/styles.css
 js/app.js                 barra lateral, navegación, cuestionarios, tarjetas, glosario, buscador, plan y progreso
 js/labs.js                laboratorios del segundo parcial
 js/labs-poo.js            laboratorios y diagramas UML del primer parcial
+js/ejercicios-demos.js    ventanas simuladas de los ejercicios de parcial
 js/prolog.js              mini intérprete de Prolog
 js/sql.js                 mini motor SQL (consola, JDBC y CRUD)
 js/programas.js           programas Prolog de ejemplo
@@ -51,6 +53,7 @@ js/content/_helpers.js    registro de lecciones y resaltado de Java, SQL, Haskel
 js/content/o*, i*, d*     lecciones del primer parcial (objetos, interfaz, datos)
 js/content/h*, p*         lecciones del segundo parcial (Haskell, Prolog)
 js/content/glosario.js    términos del glosario y de las tarjetas
+js/content/ej-*.js        ejercicios de parcial: enunciados, análisis, UML y las dos resoluciones
 js/content/paginas.js     machete y bibliografía
 tests/                    pruebas (Node)
 ```

@@ -26,10 +26,13 @@
   const allQ = ls => ls.flatMap(l => l.quiz.map((q, i) => ({ qid: l.id + ':' + i, q, lesson: l })));
   const qById = Object.fromEntries(allQ(lessons).map(x => [x.qid, x]));
   const GLOS = (PDP.glossary || []).map(g => Object.assign({ key: g.s + '|' + g.t }, g));
+  const EJS = (PDP.ejercicios || []).slice().sort((a, b) => a.n - b.n);
+  const ejById = Object.fromEntries(EJS.map(e => [e.id, e]));
+  const EJ_TIPO = { parcial: 'Enunciado de parcial', practica: 'Enunciado de práctica (inventado)' };
 
   // ---------- Progreso ----------
   const KEY = 'paradigmas-v1';
-  const fresh = () => ({ read: {}, best: {}, fail: {}, seen: {}, cards: {}, dates: {}, open: {}, last: null });
+  const fresh = () => ({ read: {}, best: {}, fail: {}, seen: {}, cards: {}, dates: {}, open: {}, ej: {}, last: null });
   let store = fresh();
   try { Object.assign(store, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { /* sin almacenamiento: se sigue sin guardar */ }
   for (const k of Object.keys(fresh())) if (store[k] === undefined) store[k] = fresh()[k];
@@ -84,6 +87,7 @@
             return '<li><a href="#/leccion/' + l.id + '" class="' + (on ? 'on' : '') + (store.read[l.id] ? ' read' : '') + '"' + (on ? ' aria-current="page"' : '') + '><span class="n">' + (store.read[l.id] ? '✓' : l.n) + '</span><span>' + l.title + '</span></a></li>';
           }).join('') + '</ol></div>';
       }
+      if (p === 'p1' && EJS.length) h += sideEjercicios(r, cur);
       h += link('#/quiz/sim-' + p, '<span class="si">✎</span>Simulacro del ' + P.short) + '</div>';
     }
     const nf = Object.keys(store.fail).filter(q => qById[q]).length;
@@ -98,6 +102,16 @@
     side.scrollTop = scroll;
     const q = document.getElementById('side-q');
     q.onkeydown = e => { if (e.key === 'Enter' && q.value.trim()) { location.hash = '#/buscar/' + encodeURIComponent(q.value.trim()); } };
+  }
+  function sideEjercicios(r, cur) {
+    const curEj = r.name === 'ejercicio' ? r.arg : null;
+    const isOpen = !!curEj || !!store.open.ejercicios;
+    return '<div class="side-sec sec-ejercicios' + (isOpen ? ' open' : '') + '"><div class="side-st"><a href="#/ejercicios" class="side-sn' + (cur === '#/ejercicios' ? ' on' : '') + '"><span class="dot" aria-hidden="true"></span>Ejercicios de parcial</a>' +
+      '<button type="button" class="side-tog" data-tog="ejercicios" aria-expanded="' + isOpen + '" aria-label="' + (isOpen ? 'Cerrar' : 'Abrir') + ' Ejercicios de parcial"><small>' + EJS.filter(e => store.ej[e.id]).length + '/' + EJS.length + '</small><span class="chev" aria-hidden="true"></span></button></div>' +
+      '<ol class="side-ls">' + EJS.map(e => {
+        const on = curEj === e.id;
+        return '<li><a href="#/ejercicio/' + e.id + '" class="' + (on ? 'on' : '') + (store.ej[e.id] ? ' read' : '') + '"' + (on ? ' aria-current="page"' : '') + '><span class="n">' + (store.ej[e.id] ? '✓' : e.n) + '</span><span>' + e.title + (e.tipo === 'parcial' ? ' <em class="tag-p">parcial</em>' : '') + '</span></a></li>';
+      }).join('') + '</ol></div>';
   }
   side.addEventListener('click', e => {
     const t = e.target.closest('[data-tog]');
@@ -127,7 +141,7 @@
         '<div class="pc-secs">' + P.secs.map(s => {
           const S = SECS[s], x = stats(ofSec(s));
           return '<a class="pc-sec sec-' + s + '" href="#/' + s + '"><span class="glyph" aria-hidden="true">' + S.glyph + '</span><span class="pcs-t"><b>' + S.name + '</b><small>' + S.long + ' · ' + x.lessons + ' lecciones</small></span>' + bar(pct(x.read, x.lessons), 'Lecciones leídas de ' + S.name) + '</a>';
-        }).join('') + '</div><div class="row"><a class="btn" href="#/' + p + '">Ver el temario</a><a class="btn ghost" href="#/quiz/sim-' + p + '">Simulacro</a></div></section>';
+        }).join('') + (p === 'p1' && EJS.length ? '<a class="pc-sec sec-ejercicios" href="#/ejercicios"><span class="glyph" aria-hidden="true">✎</span><span class="pcs-t"><b>Ejercicios de parcial</b><small>' + EJS.length + ' enunciados resueltos con Swing, UML, MVC y SQL</small></span>' + bar(pct(EJS.filter(e => store.ej[e.id]).length, EJS.length), 'Ejercicios resueltos') + '</a>' : '') + '</div><div class="row"><a class="btn" href="#/' + p + '">Ver el temario</a><a class="btn ghost" href="#/quiz/sim-' + p + '">Simulacro</a></div></section>';
     };
     const last = store.last && byId[store.last];
     const nf = Object.keys(store.fail).filter(q => qById[q]).length;
@@ -157,6 +171,7 @@
     return '<nav class="crumbs"><a href="#/">Inicio</a> / ' + P.name + '</nav><header class="page-head"><p class="over">' + P.short + '</p><h1>' + P.name + '</h1><p class="lead">' + P.blurb + '</p>' +
       '<p class="muted">' + st.read + ' de ' + st.lessons + ' lecciones leídas · ' + st.ok + ' de ' + st.qs + ' preguntas dominadas · ' + countdown(p) + '</p></header>' +
       P.secs.map(s => '<section class="sec-' + s + ' parc-sec"><h2 class="sub"><span class="glyph-inline" aria-hidden="true">' + SECS[s].glyph + '</span> <a href="#/' + s + '">' + SECS[s].name + '</a> <small class="muted">' + SECS[s].long + '</small></h2><ol class="lesson-list">' + ofSec(s).map(lessonRow).join('') + '</ol></section>').join('') +
+      (p === 'p1' && EJS.length ? '<section class="sec-ejercicios parc-sec"><h2 class="sub"><span class="glyph-inline" aria-hidden="true">✎</span> <a href="#/ejercicios">Ejercicios de parcial</a> <small class="muted">enunciados resueltos</small></h2><div class="ej-grid">' + EJS.map(ejCard).join('') + '</div></section>' : '') +
       '<div class="row end"><a class="btn" href="#/quiz/sim-' + p + '">Simulacro del ' + P.short + ' (20 preguntas)</a>' + (st.fail ? '<a class="btn ghost" href="#/quiz/repaso-' + p + '">Repasar las ' + st.fail + ' falladas</a>' : '') + '</div>';
   }
   function section(sec) {
@@ -186,6 +201,96 @@
       '<a class="btn" href="#/quiz/' + id + '">Hacer el cuestionario (' + l.quiz.length + ' preguntas)</a></footer>' +
       '<nav class="pager">' + (prev ? '<a href="#/leccion/' + prev.id + '">← ' + prev.title + '</a>' : '<span></span>') + (next ? '<a href="#/leccion/' + next.id + '">' + next.title + ' →</a>' : '<a href="#/quiz/sim-' + SECS[l.sec].p + '">Simulacro del ' + P.short + ' →</a>') + '</nav></article>';
   }
+  // ---------- Ejercicios de parcial ----------
+  const chipsCs = e => '<p class="ej-cs">' + e.conceptos.map(c => '<span>' + c + '</span>').join('') + '</p>';
+  function ejCard(e) {
+    return '<a class="ej-card sec-ejercicios" href="#/ejercicio/' + e.id + '"><span class="ej-badge ' + e.tipo + '">' + (e.tipo === 'parcial' ? 'Parcial' : 'Práctica') + '</span>' +
+      (store.ej[e.id] ? '<span class="badge ok ej-done">Resuelto</span>' : '') + '<h3>' + e.n + '. ' + e.title + '</h3><p>' + e.sub + '</p>' + chipsCs({ conceptos: e.conceptos.slice(0, 5) }) + '</a>';
+  }
+  function ejerciciosPage() {
+    const par = EJS.filter(e => e.tipo === 'parcial'), pra = EJS.filter(e => e.tipo !== 'parcial');
+    return '<nav class="crumbs"><a href="#/p1">Primer parcial</a> / Ejercicios de parcial</nav>' +
+      page('1.er parcial', 'Ejercicios de parcial', 'Enunciados para desarrollar con todo lo de la materia: clases, herencia, polimorfismo, ventanas Swing con JTable, diagrama UML, MVC y bases de datos. Cada uno tiene una ventana para probar y dos resoluciones completas.',
+        '<h2 class="sub">Enunciados de parciales</h2><div class="ej-grid">' + par.map(ejCard).join('') + '</div>' +
+        '<h2 class="sub">Enunciados de práctica</h2><p class="muted">Inventados para esta guía con el mismo estilo y dificultad que los de los parciales.</p><div class="ej-grid">' + pra.map(ejCard).join('') + '</div>' +
+        '<div class="prose wide"><h2>Las dos resoluciones</h2><table><thead><tr><th></th><th>Resolución 1</th><th>Resolución 2</th></tr></thead><tbody>' +
+        '<tr><th>Arquitectura</th><td>sin MVC: la ventana maneja los eventos y llama a las clases de negocio</td><td>MVC: modelo, vista (sin lógica) y controlador</td></tr>' +
+        '<tr><th>Datos</th><td>en memoria, en arreglos (<code>ArrayList</code>); se pierden al cerrar</td><td>en MariaDB/MySQL, con JDBC y <code>PreparedStatement</code></td></tr>' +
+        '<tr><th>Clases típicas</th><td>entidad, clase que guarda la lista, <code>Ventana…</code>, <code>Main</code></td><td>las mismas entidades + <code>Conexion</code>, <code>…DAO</code>, <code>V…</code>, <code>Controlador…</code>, <code>Main</code></td></tr>' +
+        '<tr><th>Conviene</th><td>si el parcial no pide persistencia ni MVC, o para arrancar</td><td>si pide guardar en una base o separar en capas</td></tr></tbody></table>' +
+        '<h3>¿Arreglos o ArrayList?</h3><p>Las resoluciones usan <code>ArrayList</code>, el arreglo dinámico que se vio en clase: crece solo. Si el parcial pide explícitamente un arreglo común, el cambio es local a la clase que guarda la lista:</p>' +
+        PDP.file('Ruleta.java (con arreglo de tamaño fijo)', 'private Apuesta[] apuestas = new Apuesta[200];\nprivate int cantidad = 0;\n\npublic void apostar(Apuesta a) {\n    if (cantidad == apuestas.length) throw new IllegalStateException("No entran más apuestas");\n    apuestas[cantidad] = a;\n    cantidad++;\n}\n\n// para recorrer: for (int i = 0; i < cantidad; i++) { ... apuestas[i] ... }') +
+        '<h3>Cómo ejecutar las resoluciones</h3><ol><li>En NetBeans: <em>New Project → Java with Ant → Java Application</em> (o Maven), sin clase principal automática.</li><li>Crear una clase por cada archivo y copiar el código. Todas van en el mismo paquete.</li>' +
+        '<li>Para la resolución 2: ejecutar el script <code>.sql</code> en HeidiSQL, agregar el <code>.jar</code> del driver de MariaDB a <em>Libraries</em> y revisar usuario y clave en <code>Conexion</code>.</li><li>Ejecutar <code>Main</code>.</li></ol>' +
+        '<p class="muted">Las 18 resoluciones se compilaron con Java 25 y sus reglas se probaron contra los ejemplos de cada enunciado.</p></div>');
+  }
+  function mvcSpec(e) {
+    const m = e.mvc;
+    const classes = [
+      { id: 'jf', name: 'JFrame', compact: true, x: 10, y: 10, w: 150 },
+      { id: 'al', name: 'ActionListener', stereo: 'interface', compact: true, x: 260, y: 10, w: 180 },
+      { id: 'v', name: m.vista, stereo: 'vista', compact: true, x: 10, y: 120, w: 190 },
+      { id: 'c', name: m.ctrl, stereo: 'controlador', compact: true, x: 260, y: 120, w: 230 },
+      { id: 'm', name: m.modelo, stereo: 'modelo', compact: true, x: 550, y: 120, w: 170 },
+      { id: 'cx', name: 'Conexion', compact: true, x: 300, y: 240, w: 150 },
+      { id: 'd', name: m.dao, stereo: 'DAO', compact: true, x: 550, y: 240, w: 170 }
+    ];
+    const rels = [
+      { from: 'v', to: 'jf', type: 'herencia' }, { from: 'c', to: 'al', type: 'realizacion' },
+      { from: 'c', to: 'v', type: 'asociacion', dir: true }, { from: 'c', to: 'm', type: 'asociacion', dir: true },
+      { from: 'm', to: 'd', type: 'asociacion', dir: true }, { from: 'd', to: 'cx', type: 'dependencia', label: 'usa' }
+    ];
+    if (m.entidad) {
+      classes.push({ id: 'e', name: m.entidad, stereo: 'entidad', compact: true, x: 790, y: 240, w: 150 });
+      rels.push({ from: 'd', to: 'e', type: 'dependencia', label: 'crea' });
+    }
+    return { label: 'Estructura MVC de la resolución 2', classes, rels, minw: 560 };
+  }
+  function ejercicioPage(id) {
+    const e = ejById[id];
+    if (!e) return notFound();
+    const i = EJS.indexOf(e), prev = EJS[i - 1], next = EJS[i + 1];
+    const files = (res, n) => '<div class="ej-files"><p class="lbl">Archivos</p><div class="chips">' + res.files.map((f, k) => '<button type="button" class="chiplink" data-jump="r' + n + 'f' + k + '">' + esc(f[0]) + '</button>').join('') + '</div></div>' +
+      res.files.map((f, k) => '<div id="r' + n + 'f' + k + '" class="ej-file">' + PDP.file(f[0], f[1]) + '</div>').join('');
+    return '<article class="lesson ejercicio"><nav class="crumbs"><a href="#/p1">Primer parcial</a> / <a href="#/ejercicios">Ejercicios de parcial</a> / ' + e.n + '</nav>' +
+      '<header class="page-head"><span class="ej-badge ' + e.tipo + '">' + EJ_TIPO[e.tipo] + '</span><h1>' + e.title + '</h1><p class="lead">' + e.sub + '</p>' + chipsCs(e) + '</header>' +
+      '<div class="lesson-grid"><div class="prose">' +
+      '<h2>Enunciado</h2><div class="ej-enun ' + e.tipo + '"><div class="ej-enun-tag">' + EJ_TIPO[e.tipo] + '</div>' + e.enunciado + '</div>' +
+      '<h2>Cómo encararlo</h2>' + e.analisis +
+      '<h2>Diagrama de clases</h2><figure class="uml-wrap">' + window.UML.svg(e.uml) + '</figure>' +
+      '<h2>Probá la ventana</h2><div data-lab="ejdemo:' + e.demo + '"></div>' +
+      '<h2>Resoluciones</h2><p>Intentá resolverlo antes de mirar: con el enunciado, el análisis y el diagrama ya tenés casi todo.</p>' +
+      '<div class="ej-resolver"><div class="ej-spoiler"><button type="button" class="btn" id="ej-reveal">Mostrar las resoluciones</button></div><div class="ej-res-all" hidden>' +
+      '<div class="ej-tabs" role="tablist"><button type="button" role="tab" class="ej-tab on" data-tab="1" aria-selected="true">Resolución 1 · sin MVC, con arreglos</button><button type="button" role="tab" class="ej-tab" data-tab="2" aria-selected="false">Resolución 2 · MVC + SQL</button></div>' +
+      '<div class="ej-res" data-res="1" role="tabpanel">' + e.res1.intro + files(e.res1, 1) + '</div>' +
+      '<div class="ej-res" data-res="2" role="tabpanel" hidden>' + e.res2.intro + '<figure class="uml-wrap">' + window.UML.svg(mvcSpec(e)) + '</figure>' + files(e.res2, 2) + '</div></div></div>' +
+      '<h2>Para el parcial</h2>' + e.tips +
+      '</div><aside class="toc" aria-label="En este ejercicio"></aside></div>' +
+      '<footer class="lesson-foot"><label class="chk big"><input type="checkbox" id="ej-chk"' + (store.ej[id] ? ' checked' : '') + '> Lo resolví por mi cuenta</label><a class="btn ghost" href="#/ejercicios">Ver todos los ejercicios</a></footer>' +
+      '<nav class="pager">' + (prev ? '<a href="#/ejercicio/' + prev.id + '">← ' + prev.title + '</a>' : '<span></span>') + (next ? '<a href="#/ejercicio/' + next.id + '">' + next.title + ' →</a>' : '<span></span>') + '</nav></article>';
+  }
+  function buildToc(label) {
+    const toc = main.querySelector('.toc');
+    const hs = Array.from(main.querySelectorAll('.prose > h2'));
+    if (toc && hs.length) {
+      toc.innerHTML = '<p class="over">' + label + '</p><ol>' + hs.map((h, i) => '<li><button type="button" data-i="' + i + '">' + h.textContent + '</button></li>').join('') + '</ol>';
+      toc.querySelectorAll('button').forEach(b => { b.onclick = () => hs[+b.dataset.i].scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    }
+  }
+  function ejercicioAfter(id) {
+    buildToc('En este ejercicio');
+    const chk = document.getElementById('ej-chk');
+    if (chk) chk.onchange = () => { if (chk.checked) store.ej[id] = true; else delete store.ej[id]; save(); renderSide(route()); };
+    const rv = document.getElementById('ej-reveal');
+    if (rv) rv.onclick = () => { main.querySelector('.ej-spoiler').remove(); main.querySelector('.ej-res-all').hidden = false; };
+    main.querySelectorAll('.ej-tab').forEach(t => {
+      t.onclick = () => {
+        main.querySelectorAll('.ej-tab').forEach(x => { x.classList.toggle('on', x === t); x.setAttribute('aria-selected', String(x === t)); });
+        main.querySelectorAll('.ej-res').forEach(p => { p.hidden = p.dataset.res !== t.dataset.tab; });
+      };
+    });
+  }
+
   function lessonAfter(id) {
     store.last = id;
     save();
@@ -339,6 +444,8 @@
       const lb = Object.keys(LABS).filter(k => !LABS[k].hidden && norm(LABS[k].title + ' ' + LABS[k].desc).includes(n));
       let h = '';
       if (gl.length) h += '<h2 class="sub">En el glosario</h2><dl class="gl">' + gl.map(g => '<dt class="sec-' + g.s + '"><span class="dot"></span>' + esc(g.t) + '</dt><dd>' + esc(g.d) + ' <a href="#/leccion/' + g.l + '">Ir a la lección →</a></dd>').join('') + '</dl>';
+      const ej = EJS.filter(x => norm(x.title + ' ' + x.sub + ' ' + x.conceptos.join(' ') + ' ' + x.enunciado.replace(/<[^>]+>/g, ' ')).includes(n));
+      if (ej.length) h += '<h2 class="sub">Ejercicios de parcial</h2><div class="ej-grid">' + ej.map(ejCard).join('') + '</div>';
       if (lb.length) h += '<h2 class="sub">Laboratorios</h2><p class="chips">' + lb.map(k => '<a class="chiplink" href="#/lab/' + k + '">' + LABS[k].title + '</a>').join('') + '</p>';
       h += '<h2 class="sub">Lecciones (' + res.length + ')</h2>' + (res.length ? '<ol class="bl">' + res.map(r => '<li class="sec-' + r.x.l.sec + '"><a href="#/leccion/' + r.x.l.id + '"><b>' + r.x.l.title + '</b></a> <span class="muted">' + SECS[r.x.l.sec].name + (r.count ? ' · ' + r.count + (r.count === 1 ? ' coincidencia' : ' coincidencias') : '') + '</span>' +
         (r.hh.length ? '<p class="bh">Secciones: ' + r.hh.map(esc).join(' · ') + '</p>' : '') + (r.first >= 0 ? '<p class="snip">…' + mark(r.x.text, r.x.n, r.first, n.length) + '…</p>' : '') + '</li>').join('') + '</ol>' : '<p class="muted">Ninguna lección menciona «' + esc(raw) + '».</p>');
@@ -483,6 +590,8 @@
       else if (r.name === 'glosario') { html = glosario(); after = glosarioAfter; }
       else if (r.name === 'buscar') { html = buscar(r.arg); after = buscarAfter; }
       else if (r.name === 'plan') { html = plan(); after = planAfter; }
+      else if (r.name === 'ejercicios') { html = ejerciciosPage(); sec = 'ejercicios'; }
+      else if (r.name === 'ejercicio') { html = ejercicioPage(r.arg); sec = 'ejercicios'; after = () => ejercicioAfter(r.arg); }
       else if (r.name === 'machete') html = page('Machete', 'Todo en una página', 'La sintaxis y las reglas que más se preguntan, para repasar rápido. No reemplaza a las lecciones.', '<div class="prose wide">' + PDP.pages.machete + '</div>');
       else if (r.name === 'biblio') html = page('Bibliografía', 'De dónde sale cada cosa', 'El material de la cátedra, las referencias para ampliar y las notas sobre diferencias con el material.', '<div class="prose wide">' + PDP.pages.biblio + '</div>');
       else html = notFound();
@@ -493,8 +602,8 @@
     main.querySelectorAll('.prose table').forEach(t => { if (t.closest('.lab, .dbtable')) return; const w = document.createElement('div'); w.className = 'table-wrap'; t.parentNode.insertBefore(w, t); w.appendChild(t); });
     if (after) after();
     renderSide(r);
-    const titles = { home: '', practica: 'Práctica', labs: 'Laboratorios', machete: 'Machete', biblio: 'Bibliografía', tarjetas: 'Tarjetas de memoria', glosario: 'Glosario', buscar: 'Buscar', plan: 'Plan de estudio' };
-    const t = r.name === 'leccion' && byId[r.arg] ? byId[r.arg].title : r.name === 'quiz' && quiz ? quiz.title : r.name === 'lab' && LABS[r.arg] ? LABS[r.arg].title : PARC[r.name] ? PARC[r.name].name : SECS[r.name] ? SECS[r.name].name : titles[r.name] || '';
+    const titles = { home: '', practica: 'Práctica', labs: 'Laboratorios', machete: 'Machete', biblio: 'Bibliografía', tarjetas: 'Tarjetas de memoria', glosario: 'Glosario', buscar: 'Buscar', plan: 'Plan de estudio', ejercicios: 'Ejercicios de parcial' };
+    const t = r.name === 'ejercicio' && ejById[r.arg] ? ejById[r.arg].title : r.name === 'leccion' && byId[r.arg] ? byId[r.arg].title : r.name === 'quiz' && quiz ? quiz.title : r.name === 'lab' && LABS[r.arg] ? LABS[r.arg].title : PARC[r.name] ? PARC[r.name].name : SECS[r.name] ? SECS[r.name].name : titles[r.name] || '';
     document.title = (t ? t + ' · ' : '') + 'Paradigmas de Programación';
     if (lastHash !== location.hash) {
       const sameSearch = lastHash && /^#\/buscar/.test(lastHash) && /^#\/buscar/.test(location.hash);

@@ -84,5 +84,32 @@ expect('integrador', 'nacio(X, Y).', 'ERROR');
 const first = P.Engine(PROGRAMAS.aritmetica.src).query('between(1, 20, N), factorial(N, 120).', { max: 1 });
 if (!first.solutions.length || first.solutions[0].N !== '5') fail('between + factorial');
 
+// Ejercicios de parcial: estructura, ventana simulada existente y diagramas UML sin cajas superpuestas
+const demos = fs.readFileSync(path.join(__dirname, '..', 'js', 'ejercicios-demos.js'), 'utf8');
+const ejs = PDP.ejercicios || [];
+if (ejs.length !== 9) fail('se esperaban 9 ejercicios y hay ' + ejs.length);
+if (ejs.filter(e => e.tipo === 'parcial').length !== 3) fail('se esperaban 3 enunciados de parcial');
+const umlBoxes = spec => spec.classes.map(k => {
+  const clean = s => s.replace(/^~(?=[+\-#])/, '');
+  const lines = [k.name].concat(k.stereo ? ['«' + k.stereo + '»'] : [], k.attrs || [], (k.methods || []).map(clean));
+  const w = k.w || Math.ceil(Math.max(...lines.map(s => s.length)) * 7.2 + 24);
+  const h = (k.stereo ? 40 : 28) + (k.compact ? 0 : Math.max(1, (k.attrs || []).length) * 17 + 8 + Math.max(1, (k.methods || []).length) * 17 + 8);
+  return { id: k.name, x: k.x, y: k.y, w, h };
+});
+for (const e of ejs) {
+  for (const k of ['id', 'title', 'sub', 'enunciado', 'analisis', 'uml', 'mvc', 'demo', 'res1', 'res2', 'tips']) if (!e[k]) fail('ejercicio ' + e.id + ' sin ' + k);
+  if (!new RegExp('\\bD\\.' + e.demo + ' = ').test(demos)) fail('ejercicio ' + e.id + ': no existe la ventana simulada ' + e.demo);
+  for (const r of ['res1', 'res2']) {
+    if (!e[r].files.length) fail(e.id + ' ' + r + ' sin archivos');
+    if (!e[r].files.some(([n]) => n === 'Main.java')) fail(e.id + ' ' + r + ' sin Main.java');
+  }
+  if (!e.res2.files.some(([n]) => /\.sql$/.test(n))) fail(e.id + ': la resolución 2 no tiene script SQL');
+  const b = umlBoxes(e.uml);
+  for (let i = 0; i < b.length; i++) for (let j = i + 1; j < b.length; j++) {
+    const p = b[i], q = b[j];
+    if (p.x < q.x + q.w + 8 && q.x < p.x + p.w + 8 && p.y < q.y + q.h + 8 && q.y < p.y + p.h + 8) fail(e.id + ': en el UML se superponen ' + p.id + ' y ' + q.id);
+  }
+}
+
 console.log(fails ? fails + ' controles fallaron' : 'Contenido: todos los controles pasaron');
 process.exit(fails ? 1 : 0);

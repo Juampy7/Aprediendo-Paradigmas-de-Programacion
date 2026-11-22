@@ -77,8 +77,8 @@
       const a = B[r.from], b = B[r.to];
       const ca = center(a), cb = center(b);
       const p1 = clip(a, cb.x - ca.x, cb.y - ca.y), p2 = clip(b, ca.x - cb.x, ca.y - cb.y);
-      const mk = { herencia: 'tri', agregacion: 'dia', composicion: 'diaf', dependencia: 'arr', asociacion: r.dir ? 'arr' : '' }[r.type];
-      rels += '<line x1="' + p1.x.toFixed(1) + '" y1="' + p1.y.toFixed(1) + '" x2="' + p2.x.toFixed(1) + '" y2="' + p2.y.toFixed(1) + '" class="uml-rel' + (r.type === 'dependencia' ? ' dash' : '') + '"' + (mk ? ' marker-end="url(#' + id + mk + ')"' : '') + '/>';
+      const mk = { herencia: 'tri', realizacion: 'tri', agregacion: 'dia', composicion: 'diaf', dependencia: 'arr', asociacion: r.dir ? 'arr' : '' }[r.type];
+      rels += '<line x1="' + p1.x.toFixed(1) + '" y1="' + p1.y.toFixed(1) + '" x2="' + p2.x.toFixed(1) + '" y2="' + p2.y.toFixed(1) + '" class="uml-rel' + (r.type === 'dependencia' || r.type === 'realizacion' ? ' dash' : '') + '"' + (mk ? ' marker-end="url(#' + id + mk + ')"' : '') + '/>';
       const len = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
       const d = { x: (p2.x - p1.x) / len, y: (p2.y - p1.y) / len }, n = { x: -d.y, y: d.x };
       const put = (x, y, t, cls) => { labels += '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" class="' + cls + '">' + esc(t) + '</text>'; };
@@ -176,6 +176,8 @@
       ]
     }
   };
+
+  window.UML = { svg: umlSvg, DIAGRAMS: DIAGRAMS };
 
   LABS.diagrama = {
     hidden: true, title: 'Diagrama', sec: 'objetos', desc: '',
