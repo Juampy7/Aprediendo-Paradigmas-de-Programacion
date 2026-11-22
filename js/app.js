@@ -207,6 +207,22 @@
     return '<a class="ej-card sec-ejercicios" href="#/ejercicio/' + e.id + '"><span class="ej-badge ' + e.tipo + '">' + (e.tipo === 'parcial' ? 'Parcial' : 'Práctica') + '</span>' +
       (store.ej[e.id] ? '<span class="badge ok ej-done">Resuelto</span>' : '') + '<h3>' + e.n + '. ' + e.title + '</h3><p>' + e.sub + '</p>' + chipsCs({ conceptos: e.conceptos.slice(0, 5) }) + '</a>';
   }
+  function agradecimientos() {
+    const L = (href, t) => '<a href="' + href + '" target="_blank" rel="noopener">' + t + '</a>';
+    const item = (t, body) => '<div class="thanks-item"><h3>' + t + '</h3>' + body + '</div>';
+    return page('Gracias', 'Agradecimientos', 'Esta guía existe gracias al trabajo de otras personas. A todas, gracias.',
+      '<div class="thanks-list">' +
+      item('A la cátedra', '<p>A la cátedra de Paradigmas de Programación de la UTN-FRT y al profe José, por las diapositivas, los apuntes y las clases grabadas en las que se basa todo el contenido.</p><p>' + L('https://www.youtube.com/@utn-frtparadigmasdeprogram9502', 'Canal de YouTube de la cátedra') + '</p>') +
+      item('A Franco704 y Operando Ando', '<p>Su guía de Sistemas Operativos inspiró la estructura de esta página: lecciones, cuestionarios, laboratorios y repaso de lo fallado.</p><p>' + L('https://github.com/Franco704/operando-ando', 'github.com/Franco704/operando-ando') + '</p>') +
+      item('A Paradigmas de Programación (pdep)', '<p>Por su material abierto de funcional y lógico, usado como referencia para ampliar.</p><p>' + L('https://www.pdep.com.ar/', 'pdep.com.ar') + '</p>') +
+      item('A quienes comparten conocimiento', '<p>A los autores de la bibliografía de la materia, a la documentación de Java, MariaDB, Haskell y SWI-Prolog, y a Wikipedia.</p><p>' + L('#/biblio', 'Ver la bibliografía').replace(' target="_blank" rel="noopener"', '') + '</p>') +
+      item('A vos', '<p>Por usar la guía para estudiar. Si encontrás un error o querés proponer algo, podés abrir un <em>issue</em> en el repositorio.</p><p>' + L('https://github.com/Juampy7/Aprediendo-Paradigmas-de-Programacion/issues', 'Reportar un error o sugerir algo') + '</p>') +
+      '</div>' +
+      '<div class="gh big"><p class="gh-t">¿Te sirvió la guía? Apoyala en GitHub</p><div class="gh-btns">' +
+      '<a class="gh-btn" href="https://github.com/Juampy7/Aprediendo-Paradigmas-de-Programacion" target="_blank" rel="noopener"><span aria-hidden="true">★</span> Dejale una estrella al repo</a>' +
+      '<a class="gh-btn" href="https://github.com/Juampy7" target="_blank" rel="noopener"><span aria-hidden="true">＋</span> Seguí a @Juampy7</a></div>' +
+      '<p class="gh-r">Hecha por ' + L('https://github.com/Juampy7', '@Juampy7') + ' · Repositorio: ' + L('https://github.com/Juampy7/Aprediendo-Paradigmas-de-Programacion', 'github.com/Juampy7/Aprediendo-Paradigmas-de-Programacion') + '</p></div>');
+  }
   function ejerciciosPage() {
     const par = EJS.filter(e => e.tipo === 'parcial'), pra = EJS.filter(e => e.tipo !== 'parcial');
     return '<nav class="crumbs"><a href="#/p1">Primer parcial</a> / Ejercicios de parcial</nav>' +
@@ -590,6 +606,7 @@
       else if (r.name === 'glosario') { html = glosario(); after = glosarioAfter; }
       else if (r.name === 'buscar') { html = buscar(r.arg); after = buscarAfter; }
       else if (r.name === 'plan') { html = plan(); after = planAfter; }
+      else if (r.name === 'agradecimientos') html = agradecimientos();
       else if (r.name === 'ejercicios') { html = ejerciciosPage(); sec = 'ejercicios'; }
       else if (r.name === 'ejercicio') { html = ejercicioPage(r.arg); sec = 'ejercicios'; after = () => ejercicioAfter(r.arg); }
       else if (r.name === 'machete') html = page('Machete', 'Todo en una página', 'La sintaxis y las reglas que más se preguntan, para repasar rápido. No reemplaza a las lecciones.', '<div class="prose wide">' + PDP.pages.machete + '</div>');
@@ -602,9 +619,11 @@
     main.querySelectorAll('.prose table').forEach(t => { if (t.closest('.lab, .dbtable')) return; const w = document.createElement('div'); w.className = 'table-wrap'; t.parentNode.insertBefore(w, t); w.appendChild(t); });
     if (after) after();
     renderSide(r);
-    const titles = { home: '', practica: 'Práctica', labs: 'Laboratorios', machete: 'Machete', biblio: 'Bibliografía', tarjetas: 'Tarjetas de memoria', glosario: 'Glosario', buscar: 'Buscar', plan: 'Plan de estudio', ejercicios: 'Ejercicios de parcial' };
+    const titles = { home: '', practica: 'Práctica', labs: 'Laboratorios', machete: 'Machete', biblio: 'Bibliografía', tarjetas: 'Tarjetas de memoria', glosario: 'Glosario', buscar: 'Buscar', plan: 'Plan de estudio', ejercicios: 'Ejercicios de parcial', agradecimientos: 'Agradecimientos' };
     const t = r.name === 'ejercicio' && ejById[r.arg] ? ejById[r.arg].title : r.name === 'leccion' && byId[r.arg] ? byId[r.arg].title : r.name === 'quiz' && quiz ? quiz.title : r.name === 'lab' && LABS[r.arg] ? LABS[r.arg].title : PARC[r.name] ? PARC[r.name].name : SECS[r.name] ? SECS[r.name].name : titles[r.name] || '';
     document.title = (t ? t + ' · ' : '') + 'Paradigmas de Programación';
+    const tb = document.getElementById('thanks-btn');
+    if (tb) { tb.classList.toggle('on', r.name === 'agradecimientos'); if (r.name === 'agradecimientos') tb.setAttribute('aria-current', 'page'); else tb.removeAttribute('aria-current'); }
     if (lastHash !== location.hash) {
       const sameSearch = lastHash && /^#\/buscar/.test(lastHash) && /^#\/buscar/.test(location.hash);
       if (!sameSearch) window.scrollTo(0, 0);

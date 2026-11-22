@@ -410,7 +410,7 @@ pre .pr { color: #8b86a3; user-select: none; } pre .out { color: #b9f0c9; }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .menu-btn { display: inline-grid; }
   .top-sub { display: none; }
-  .theme-btn { margin-left: auto; }
+  .thanks-btn { margin-left: auto; }
   .side { position: fixed; top: 57px; left: 0; bottom: 0; height: auto; width: min(320px, 86vw); z-index: 30; transform: translateX(-105%); transition: transform .2s; box-shadow: 0 10px 40px rgba(0, 0, 0, .25); }
   body.side-open .side { transform: none; }
   body.side-open .side-shade { display: block; position: fixed; inset: 57px 0 0 0; background: rgba(10, 8, 20, .45); z-index: 25; }
@@ -789,3 +789,18 @@ table.jt tr.sel .pos, table.jt tr.sel .neg, table.jt tr.sel b, table.jt tr.sel s
 .oc-r span.on { background: #b45309; }
 @media (max-width: 760px) { .ej-two { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .bola { animation: none; } }
+.gh { max-width: 640px; margin: 0 auto 18px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.gh-t { font: 700 1.05rem var(--serif); color: var(--ink); margin: 0 0 10px !important; }
+.gh-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.gh-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-weight: 600; text-decoration: none; }
+.gh-btn:hover { border-color: var(--ink-2); background: var(--surface-2); }
+.gh-btn span { color: #d29a00; }
+.gh-r { margin: 10px auto 0 !important; font-size: .82rem; word-break: break-word; }
+.thanks-btn { display: inline-grid; place-items: center; text-decoration: none; color: #d6336c; font-size: 1rem; }
+.thanks-btn:hover, .thanks-btn.on { background: color-mix(in srgb, #d6336c 12%, var(--surface)); border-color: #d6336c; }
+.top-in .thanks-btn + .theme-btn { margin-left: -8px; }
+.thanks-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 0 0 24px; }
+.thanks-item { padding: 16px 18px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid #d6336c; }
+.thanks-item h3 { font-size: 1.1rem; margin: 0 0 6px; }
+.thanks-item p { margin: 0 0 6px; color: var(--ink-2); font-size: .93rem; line-height: 1.5; }
+.gh.big { max-width: none; margin: 0; text-align: center; }
