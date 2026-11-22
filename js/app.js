@@ -629,7 +629,7 @@
     }
   });
   document.addEventListener('keydown', e => {
-    if (e.target.matches('input, textarea, select')) return;
+    if (e.target.matches && e.target.matches('input, textarea, select')) return;
     if (e.key === '/' && !e.ctrlKey && !e.metaKey) { const q = document.getElementById('side-q'); if (q) { e.preventDefault(); document.body.classList.add('side-open'); q.focus(); } return; }
     if (e.key === 'Escape') document.body.classList.remove('side-open');
     if (quiz && quiz.cur && quiz.cur.chosen === null && /^[1-4]$/.test(e.key)) { const oi = quiz.cur.order[+e.key - 1]; if (oi !== undefined) answer(oi); return; }
@@ -639,6 +639,15 @@
     }
   });
   window.addEventListener('hashchange', draw);
+
+  // ---------- Botón ♥: datos del autor ----------
+  const meBtn = document.getElementById('me-btn'), mePop = document.getElementById('me-pop');
+  if (meBtn && mePop) {
+    const abrir = v => { mePop.hidden = !v; meBtn.setAttribute('aria-expanded', String(v)); };
+    meBtn.onclick = e => { e.stopPropagation(); abrir(mePop.hidden); };
+    document.addEventListener('click', e => { if (!mePop.hidden && !mePop.contains(e.target)) abrir(false); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !mePop.hidden) { abrir(false); meBtn.focus(); } });
+  }
 
   // ---------- Tema ----------
   const tbtn = document.getElementById('theme-btn');
