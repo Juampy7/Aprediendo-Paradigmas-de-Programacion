@@ -145,7 +145,7 @@
     };
     const last = store.last && byId[store.last];
     const nf = Object.keys(store.fail).filter(q => qById[q]).length;
-    return '<section class="hero"><p class="over">Guía de estudio · UTN-FRT</p><h1>Paradigmas de Programación</h1>' +
+    return '<section class="hero"><p class="over">Guía de estudio de Paradigmas de Programación · UTN-FRT</p><h1>Programando</h1>' +
       '<p class="lead">Las diapositivas, los apuntes y las clases grabadas de la cátedra, reescritos como ' + lessons.length + ' lecciones, con ' + allQ(lessons).length + ' preguntas de repaso, ' + Object.keys(LABS).filter(k => !LABS[k].hidden).length + ' laboratorios interactivos y ' + GLOS.length + ' tarjetas de memoria.</p>' +
       (last ? '<a class="resume sec-' + last.sec + '" href="#/leccion/' + last.id + '"><span class="over">Seguí donde dejaste</span><b>' + last.title + '</b><small>' + SECS[last.sec].name + ' · lección ' + last.n + '</small></a>' : '') + '</section>' +
       '<div class="parc-grid">' + parcCard('p1') + parcCard('p2') + '</div>' +
@@ -604,7 +604,7 @@
     renderSide(r);
     const titles = { home: '', practica: 'Práctica', labs: 'Laboratorios', machete: 'Machete', biblio: 'Bibliografía', tarjetas: 'Tarjetas de memoria', glosario: 'Glosario', buscar: 'Buscar', plan: 'Plan de estudio', ejercicios: 'Ejercicios de parcial' };
     const t = r.name === 'ejercicio' && ejById[r.arg] ? ejById[r.arg].title : r.name === 'leccion' && byId[r.arg] ? byId[r.arg].title : r.name === 'quiz' && quiz ? quiz.title : r.name === 'lab' && LABS[r.arg] ? LABS[r.arg].title : PARC[r.name] ? PARC[r.name].name : SECS[r.name] ? SECS[r.name].name : titles[r.name] || '';
-    document.title = (t ? t + ' · ' : '') + 'Paradigmas de Programación';
+    document.title = (t ? t + ' · ' : '') + 'Programando';
     if (lastHash !== location.hash) {
       const sameSearch = lastHash && /^#\/buscar/.test(lastHash) && /^#\/buscar/.test(location.hash);
       if (!sameSearch) window.scrollTo(0, 0);

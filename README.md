@@ -1,6 +1,6 @@
-# Aprendiendo Paradigmas de Programación
+# Programando
 
-**Sitio: [juampy7.github.io/Aprediendo-Paradigmas-de-Programacion](https://juampy7.github.io/Aprediendo-Paradigmas-de-Programacion/)**
+**Sitio: [juampy7.github.io/Programando](https://juampy7.github.io/Programando/)**
 
 Guía de estudio de **Paradigmas de Programación** (UTN-FRT), armada con las diapositivas, los apuntes y las clases grabadas de la cátedra. Una barra lateral ordena todo el contenido por parcial, y cada sección tiene su color:
 
