@@ -10,6 +10,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // Contador de visitas (GoatCounter, sin cookies): cuenta cada lección (#/…) y no guarda lo que se busca
+    (function () {
+      function ruta() { return location.host + location.pathname + location.hash.replace(/^#\/?buscar\/.*/, '#/buscar'); }
+      window.goatcounter = { path: ruta };
+      window.addEventListener('hashchange', function () {
+        if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: ruta() });
+      });
+    })();
+  </script>
+  <script data-goatcounter="https://juampy7.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
   <a class="skip" href="#app">Saltar al contenido</a>
